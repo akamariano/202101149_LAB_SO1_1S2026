@@ -1,0 +1,9 @@
+# Go
+*.exe
+*.test
+*.out
+bin/
+vendor/
+
+# Sistema
+.DS_Store
