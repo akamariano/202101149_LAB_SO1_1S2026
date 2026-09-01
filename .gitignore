@@ -5,5 +5,16 @@
 bin/
 vendor/
 
+# Módulos de Kernel & C
+*.ko
+*.o
+*.mod
+*.mod.c
+*.symvers
+*.order
+.*.cmd
+.tmp_versions/
+
 # Sistema
 .DS_Store
+
