@@ -1,0 +1,21 @@
+services:
+  valkey:
+    image: valkey/valkey:latest
+    container_name: valkey_db
+    ports:
+      - "6379:6379"
+    restart: always
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana_dashboard
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      - valkey
+    restart: always
