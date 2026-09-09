@@ -32,7 +32,6 @@ type TelemetryData struct {
 	Containers []ContainerInfo `json:"containers"`
 }
 
-// ParseProcFile lee el archivo /proc/continfo_pr2_so1_202101149 y lo deserializa
 func ParseProcFile(procPath string) (*TelemetryData, error) {
 	file, err := os.Open(procPath)
 	if err != nil {
@@ -46,6 +45,7 @@ func ParseProcFile(procPath string) (*TelemetryData, error) {
 
 	scanner := bufio.NewScanner(file)
 	inProcessSection := false
+	containerMap := make(map[string]ContainerInfo)
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -59,14 +59,27 @@ func ParseProcFile(procPath string) (*TelemetryData, error) {
 		}
 
 		if !inProcessSection {
-			// Parsing de métricas de RAM
 			parseRAMLine(line, &telemetry.RAM)
 		} else {
-			// Parsing de filas de contenedores
 			if container, ok := parseContainerLine(line); ok {
-				telemetry.Containers = append(telemetry.Containers, container)
+				if existing, found := containerMap[container.ID]; found {
+					existing.RSSKB += container.RSSKB
+					existing.VSZKB += container.VSZKB
+					existing.RAMPerc += container.RAMPerc
+					existing.CPUPerc += container.CPUPerc
+					if !strings.Contains(existing.Command, container.Command) {
+						existing.Command = existing.Command + "+" + container.Command
+					}
+					containerMap[container.ID] = existing
+				} else {
+					containerMap[container.ID] = container
+				}
 			}
 		}
+	}
+
+	for _, c := range containerMap {
+		telemetry.Containers = append(telemetry.Containers, c)
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -83,8 +96,6 @@ func parseRAMLine(line string, ram *RAMTelemetry) {
 	}
 	key := strings.TrimSpace(parts[0])
 	valPart := strings.TrimSpace(parts[1])
-
-	// Extraer primer número antes de KB
 	kbVal := parseFirstNumber(valPart)
 
 	switch {

@@ -1,0 +1,10 @@
+apiVersion: 1
+
+datasources:
+  - name: Valkey
+    uid: Valkey
+    type: redis-datasource
+    access: proxy
+    url: valkey-db:6379
+    isDefault: true
+    editable: true

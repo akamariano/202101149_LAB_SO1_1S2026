@@ -5,6 +5,7 @@ import (
 	"daemon-go/internal/manager"
 	"daemon-go/internal/procparser"
 	"daemon-go/internal/valkey"
+	"daemon-go/internal/ebpfprobe"
 	"fmt"
 	"log"
 	"os"
@@ -56,7 +57,16 @@ func main() {
 			log.Printf("[ÉXITO] Módulo continfo cargado correctamente en %s", ProcPath)
 		}
 	}
-
+		// 2.5 Iniciar sonda eBPF para confirmar eliminaciones reales
+	log.Println("[PASO 2.5] Iniciando sonda eBPF (pidfd_send_signal)...")
+	pidfdProbe, err := ebpfprobe.StartPidfdProbe()
+	if err != nil {
+		log.Printf("[ADVERTENCIA] No se pudo iniciar sonda eBPF: %v", err)
+	} else {
+		manager.SetPidfdProbe(pidfdProbe)
+		defer pidfdProbe.Close()
+		log.Println("[ÉXITO] Sonda eBPF activa")
+	}
 	// 3. Configurar e instalar el Cronjob en el Sistema Operativo
 	log.Println("[PASO 3] Instalando Cronjob para despliegue aleatorio cada 2 minutos...")
 	cronScriptPath := filepath.Join(rootDir, "cronjob", "deploy_random.sh")
@@ -104,6 +114,9 @@ func main() {
 			// Almacenamiento en Valkey
 			if err := vClient.StoreTelemetry(ctx, data); err != nil {
 				log.Printf("[VALKEY] Error al guardar telemetria: %v", err)
+			}
+			if err := vClient.StoreTopContainers(ctx, data.Containers); err != nil {
+				log.Printf("[VALKEY] Error al guardar top containers: %v", err)
 			}
 			if len(decisionLogs) > 0 {
 				_ = vClient.StoreLogs(ctx, decisionLogs)

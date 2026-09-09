@@ -1,0 +1,147 @@
+{
+  "title": "PANEL DE CONTENEDORES POR 202101149",
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "TOTAL RAM",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+      "datasource": { "type": "redis-datasource", "uid": "Valkey" },
+      "targets": [
+        { "command": "get", "key": "latest_telemetry", "refId": "A" }
+      ],
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "source": "Value",
+            "format": "json",
+            "jsonPaths": [
+              { "path": "data.ram.total_kb", "alias": "Total RAM" }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "kbytes", "color": { "mode": "fixed", "fixedColor": "light-blue" } } }
+    },
+    {
+      "id": 2,
+      "title": "FREE RAM",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
+      "datasource": { "type": "redis-datasource", "uid": "Valkey" },
+      "targets": [
+        { "command": "get", "key": "latest_telemetry", "refId": "A" }
+      ],
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "source": "Value",
+            "format": "json",
+            "jsonPaths": [
+              { "path": "data.ram.free_kb", "alias": "Free RAM" }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "kbytes", "color": { "mode": "fixed", "fixedColor": "light-green" } } }
+    },
+    {
+      "id": 3,
+      "title": "TOTAL CONTENEDORES ELIMINADOS",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
+      "datasource": { "type": "redis-datasource", "uid": "Valkey" },
+      "targets": [{ "command": "llen", "key": "decision_logs", "refId": "A" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "light-red" } } }
+    },
+    {
+      "id": 4,
+      "title": "GRAFICA DE USO DE RAM EN EL TIEMPO",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 6 },
+      "datasource": { "type": "redis-datasource", "uid": "Valkey" },
+      "targets": [
+        {
+          "command": "lrange",
+          "key": "telemetry_history",
+          "start": "0",
+          "stop": "-1",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "source": "Value",
+            "format": "json",
+            "jsonPaths": [
+              { "path": "timestamp", "alias": "Time" },
+              { "path": "data.ram.used_adj_kb", "alias": "RAM Usada" }
+            ]
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              { "targetField": "Time", "destinationType": "time", "dateFormat": "X" }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "kbytes", "color": { "mode": "fixed", "fixedColor": "yellow" } } }
+    },
+    {
+      "id": 5,
+      "title": "TOP 5 +RAM",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 14 },
+      "datasource": { "type": "redis-datasource", "uid": "Valkey" },
+      "targets": [
+        {
+          "command": "zrevrange",
+          "key": "top_ram",
+          "start": "0",
+          "stop": "4",
+          "withScores": true,
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "kbytes" } }
+    },
+    {
+      "id": 6,
+      "title": "TOP 5 +CPU",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 14 },
+      "datasource": { "type": "redis-datasource", "uid": "Valkey" },
+      "targets": [
+        {
+          "command": "zrevrange",
+          "key": "top_cpu",
+          "start": "0",
+          "stop": "4",
+          "withScores": true,
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percent" } }
+    },
+    {
+      "id": 7,
+      "title": "eBPF EVENT COUNTER",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 14 },
+      "datasource": { "type": "redis-datasource", "uid": "Valkey" },
+      "targets": [{ "command": "get", "key": "ebpf_kill_events_total", "refId": "A" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "purple" } } }
+    }
+  ]
+}

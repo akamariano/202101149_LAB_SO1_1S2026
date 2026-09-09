@@ -1,21 +1,25 @@
 services:
   valkey:
     image: valkey/valkey:latest
-    container_name: valkey_db
+    container_name: valkey-db
     ports:
       - "6379:6379"
+    volumes:
+      - ./valkey-data:/data
     restart: always
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes
 
   grafana:
-    image: grafana/grafana:latest
-    container_name: grafana_dashboard
+    image: grafana/grafana:11.2.0
+    container_name: grafana-valkey
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
+      - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=redis-datasource
+    volumes:
+      - ./grafana-data:/var/lib/grafana
+      - ./provisioning:/etc/grafana/provisioning
     depends_on:
       - valkey
     restart: always

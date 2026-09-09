@@ -1,12 +1,14 @@
 package manager
 
 import (
+	"daemon-go/internal/ebpfprobe"
 	"daemon-go/internal/procparser"
 	"fmt"
 	"log"
 	"os/exec"
 	"sort"
 	"strings"
+	"time"
 )
 
 type ContainerCategory string
@@ -29,6 +31,7 @@ type DecisionLog struct {
 	TotalLow      int      `json:"total_low"`
 	TotalHigh     int      `json:"total_high"`
 	ProtectedList []string `json:"protected_list"`
+	EBPFConfirmed bool     `json:"ebpf_confirmed"`
 }
 
 // Protected container names/IDs that must NEVER be killed
@@ -38,7 +41,15 @@ var ProtectedNames = []string{
 	"valkey",
 	"grafana",
 }
+var activePidfdProbe *ebpfprobe.PidfdProbe
 
+const ebpfConfirmTimeout = 3 * time.Second
+
+// SetPidfdProbe registra la sonda eBPF activa para que stopAndRemoveContainer
+// pueda esperar la confirmacion real de SIGKILL antes de reportar exito
+func SetPidfdProbe(p *ebpfprobe.PidfdProbe) {
+	activePidfdProbe = p
+}
 // EvaluateAndManageContainers analiza los contenedores y aplica las restricciones del sistema
 func EvaluateAndManageContainers(containers []procparser.ContainerInfo) ([]DecisionLog, error) {
 	logs := make([]DecisionLog, 0)
@@ -62,47 +73,65 @@ func EvaluateAndManageContainers(containers []procparser.ContainerInfo) ([]Decis
 		}
 	}
 
-	// Ordenamiento por uso de recursos (RAM/RSS, CPU, VSZ)
-	sortContainers(lowContainers)
-	sortContainers(highContainers)
+	// Ordenamiento descendente (de mayor consumo a menor consumo) para eliminar los más pesados en exceso
+	sortContainersDescending(lowContainers)
+	sortContainersDescending(highContainers)
 
 	log.Printf("[MANAGER] Encontrados: %d Bajo Consumo, %d Alto Consumo (No Protegidos)", len(lowContainers), len(highContainers))
 
-	// Invariante 1: Mantener al menos 3 de bajo consumo. Eliminar excesos si los hay.
+	// Invariante 1: Mantener exactamente 3 de bajo consumo. Eliminar los excedentes más pesados.
 	if len(lowContainers) > 3 {
-		excess := lowContainers[3:] // Los de mayor consumo en exceso
-		for _, c := range excess {
-			reason := fmt.Sprintf("Exceso de bajo consumo (Mantenidos 3, eliminando extra ID: %s con RSS: %d KB)", c.ID, c.RSSKB)
-			if err := stopAndRemoveContainer(c.ID); err == nil {
-				logs = append(logs, DecisionLog{
-					Action:      "KILL",
-					ContainerID: c.ID,
-					Reason:      reason,
-					TotalLow:    len(lowContainers),
-					TotalHigh:   len(highContainers),
-				})
-			}
+		excessCount := len(lowContainers) - 3
+		for i := 0; i < excessCount; i++ {
+			c := lowContainers[i] // El más pesado del exceso
+			reason := fmt.Sprintf("Exceso de bajo consumo (Límite: 3, eliminando ID: %s con RSS: %d KB)", c.ID, c.RSSKB)
+			if confirmed, err := stopAndRemoveContainer(c.ID); err == nil {
+	logs = append(logs, DecisionLog{
+		Timestamp:     time.Now().Format(time.RFC3339),
+		Action:        "KILL",
+		ContainerID:   c.ID,
+		Reason:        reason,
+		TotalLow:      len(lowContainers),
+		TotalHigh:     len(highContainers),
+		EBPFConfirmed: confirmed,
+	})
+}
 		}
 	}
 
-	// Invariante 2: Mantener al menos 2 de alto consumo. Eliminar excesos si los hay.
+	// Invariante 2: Mantener exactamente 2 de alto consumo. Eliminar los excedentes más pesados.
 	if len(highContainers) > 2 {
-		excess := highContainers[2:] // Los de mayor consumo en exceso
-		for _, c := range excess {
-			reason := fmt.Sprintf("Exceso de alto consumo (Mantenidos 2, eliminando extra ID: %s con %%CPU: %.1f%%)", c.ID, c.CPUPerc)
-			if err := stopAndRemoveContainer(c.ID); err == nil {
-				logs = append(logs, DecisionLog{
-					Action:      "KILL",
-					ContainerID: c.ID,
-					Reason:      reason,
-					TotalLow:    len(lowContainers),
-					TotalHigh:   len(highContainers),
-				})
-			}
+		excessCount := len(highContainers) - 2
+		for i := 0; i < excessCount; i++ {
+			c := highContainers[i] // El más pesado del exceso
+			reason := fmt.Sprintf("Exceso de alto consumo (Límite: 2, eliminando ID: %s con %%CPU: %.1f%%)", c.ID, c.CPUPerc)
+			if confirmed, err := stopAndRemoveContainer(c.ID); err == nil {
+	logs = append(logs, DecisionLog{
+		Timestamp:     time.Now().Format(time.RFC3339),
+		Action:        "KILL",
+		ContainerID:   c.ID,
+		Reason:        reason,
+		TotalLow:      len(lowContainers),
+		TotalHigh:     len(highContainers),
+		EBPFConfirmed: confirmed,
+	})
+}
 		}
 	}
 
 	return logs, nil
+}
+
+func sortContainersDescending(list []CategorizedContainer) {
+	sort.Slice(list, func(i, j int) bool {
+		if list[i].RSSKB != list[j].RSSKB {
+			return list[i].RSSKB > list[j].RSSKB // Mayor consumo primero
+		}
+		if list[i].CPUPerc != list[j].CPUPerc {
+			return list[i].CPUPerc > list[j].CPUPerc
+		}
+		return list[i].VSZKB > list[j].VSZKB
+	})
 }
 
 func classifyContainer(c procparser.ContainerInfo) ContainerCategory {
@@ -146,14 +175,24 @@ func isProtected(c procparser.ContainerInfo) bool {
 	return false
 }
 
-func stopAndRemoveContainer(containerID string) error {
+func stopAndRemoveContainer(containerID string) (bool, error) {
 	log.Printf("[MANAGER] Deteniendo y eliminando contenedor: %s", containerID)
 	cmd := exec.Command("sudo", "docker", "rm", "-f", containerID)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("[ERROR] Error al eliminar contenedor %s: %v | Salida: %s", containerID, err, string(out))
-		return err
+		return false, err
 	}
-	log.Printf("[SUCCESS] Contenedor %s eliminado exitosamente", containerID)
-	return nil
+
+	confirmed := false
+	if activePidfdProbe != nil {
+		confirmed = activePidfdProbe.WaitForKillConfirmation(ebpfConfirmTimeout)
+	}
+
+	if confirmed {
+		log.Printf("[SUCCESS] Contenedor %s eliminado y confirmado por eBPF (SIGKILL detectado)", containerID)
+	} else {
+		log.Printf("[SUCCESS] Contenedor %s eliminado (sin confirmacion eBPF dentro del timeout)", containerID)
+	}
+	return confirmed, nil
 }
