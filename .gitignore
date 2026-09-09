@@ -18,3 +18,6 @@ vendor/
 # Sistema
 .DS_Store
 
+grafana-data/
+valkey-data/
+valkey-data/

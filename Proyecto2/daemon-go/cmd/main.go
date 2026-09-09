@@ -121,6 +121,13 @@ func main() {
 			if len(decisionLogs) > 0 {
 				_ = vClient.StoreLogs(ctx, decisionLogs)
 			}
+			for _, dl := range decisionLogs {
+				if dl.EBPFConfirmed {
+					if err := vClient.IncrementEBPFEventCount(ctx); err != nil {
+						log.Printf("[VALKEY] Error al incrementar contador eBPF: %v", err)
+					}
+				}
+			}
 		}
 
 		time.Sleep(LoopIntervalSec * time.Second)

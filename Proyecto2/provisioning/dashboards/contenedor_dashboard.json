@@ -1,147 +1,639 @@
 {
-  "title": "PANEL DE CONTENEDORES POR 202101149",
-  "timezone": "browser",
-  "schemaVersion": 38,
-  "refresh": "5s",
-  "time": { "from": "now-15m", "to": "now" },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
   "panels": [
     {
+      "datasource": {
+        "default": true,
+        "type": "redis-datasource",
+        "uid": "Valkey"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "light-blue",
+            "mode": "fixed"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "kbytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 0
+      },
       "id": 1,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "command": "get",
+          "datasource": {
+            "type": "redis-datasource",
+            "uid": "Valkey"
+          },
+          "key": "latest_telemetry",
+          "keyName": "latest_telemetry",
+          "query": "",
+          "refId": "A",
+          "type": "command"
+        }
+      ],
       "title": "TOTAL RAM",
-      "type": "stat",
-      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
-      "datasource": { "type": "redis-datasource", "uid": "Valkey" },
-      "targets": [
-        { "command": "get", "key": "latest_telemetry", "refId": "A" }
-      ],
       "transformations": [
         {
           "id": "extractFields",
           "options": {
-            "source": "Value",
             "format": "json",
             "jsonPaths": [
-              { "path": "data.ram.total_kb", "alias": "Total RAM" }
-            ]
+              {
+                "alias": "Total RAM",
+                "path": "data.ram.total_kb"
+              }
+            ],
+            "source": "Value"
           }
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "kbytes", "color": { "mode": "fixed", "fixedColor": "light-blue" } } }
+      "type": "stat"
     },
     {
+      "datasource": {
+        "default": true,
+        "type": "redis-datasource",
+        "uid": "Valkey"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "light-green",
+            "mode": "fixed"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "kbytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 8,
+        "y": 0
+      },
       "id": 2,
-      "title": "FREE RAM",
-      "type": "stat",
-      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
-      "datasource": { "type": "redis-datasource", "uid": "Valkey" },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.2.0",
       "targets": [
-        { "command": "get", "key": "latest_telemetry", "refId": "A" }
+        {
+          "command": "get",
+          "datasource": {
+            "type": "redis-datasource",
+            "uid": "Valkey"
+          },
+          "key": "latest_telemetry",
+          "keyName": "latest_telemetry",
+          "query": "",
+          "refId": "A",
+          "type": "command"
+        }
       ],
+      "title": "FREE RAM",
       "transformations": [
         {
           "id": "extractFields",
           "options": {
-            "source": "Value",
             "format": "json",
             "jsonPaths": [
-              { "path": "data.ram.free_kb", "alias": "Free RAM" }
-            ]
+              {
+                "alias": "Free RAM",
+                "path": "data.ram.free_kb"
+              }
+            ],
+            "source": "Value"
           }
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "kbytes", "color": { "mode": "fixed", "fixedColor": "light-green" } } }
+      "type": "stat"
     },
     {
+      "datasource": {
+        "default": true,
+        "type": "redis-datasource",
+        "uid": "Valkey"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "light-red",
+            "mode": "fixed"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 16,
+        "y": 0
+      },
       "id": 3,
-      "title": "TOTAL CONTENEDORES ELIMINADOS",
-      "type": "stat",
-      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
-      "datasource": { "type": "redis-datasource", "uid": "Valkey" },
-      "targets": [{ "command": "llen", "key": "decision_logs", "refId": "A" }],
-      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "light-red" } } }
-    },
-    {
-      "id": 4,
-      "title": "GRAFICA DE USO DE RAM EN EL TIEMPO",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 6 },
-      "datasource": { "type": "redis-datasource", "uid": "Valkey" },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.2.0",
       "targets": [
         {
-          "command": "lrange",
+          "command": "llen",
+          "datasource": {
+            "type": "redis-datasource",
+            "uid": "Valkey"
+          },
+          "key": "decision_logs",
+          "keyName": "decision_logs",
+          "query": "",
+          "refId": "A",
+          "type": "command"
+        }
+      ],
+      "title": "TOTAL CONTENEDORES ELIMINADOS",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "default": true,
+        "type": "redis-datasource",
+        "uid": "Valkey"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "yellow",
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "kbytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "command": "",
+          "datasource": {
+            "type": "redis-datasource",
+            "uid": "Valkey"
+          },
           "key": "telemetry_history",
+          "query": "LRANGE telemetry_history 0 -1",
+          "refId": "A",
           "start": "0",
           "stop": "-1",
-          "refId": "A"
+          "type": "cli"
         }
       ],
+      "title": "GRAFICA DE USO DE RAM EN EL TIEMPO",
       "transformations": [
         {
           "id": "extractFields",
           "options": {
-            "source": "Value",
             "format": "json",
             "jsonPaths": [
-              { "path": "timestamp", "alias": "Time" },
-              { "path": "data.ram.used_adj_kb", "alias": "RAM Usada" }
-            ]
+              {
+                "alias": "Time",
+                "path": "timestamp"
+              },
+              {
+                "alias": "RAM Usada",
+                "path": "data.ram.used_adj_kb"
+              }
+            ],
+            "source": "Value"
           }
         },
         {
           "id": "convertFieldType",
           "options": {
             "conversions": [
-              { "targetField": "Time", "destinationType": "time", "dateFormat": "X" }
+              {
+                "dateFormat": "X",
+                "destinationType": "time",
+                "targetField": "Time"
+              }
             ]
           }
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "kbytes", "color": { "mode": "fixed", "fixedColor": "yellow" } } }
+      "type": "timeseries"
     },
     {
+      "datasource": {
+        "default": true,
+        "type": "redis-datasource",
+        "uid": "Valkey"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "kbytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 14
+      },
       "id": 5,
-      "title": "TOP 5 +RAM",
-      "type": "bargauge",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 14 },
-      "datasource": { "type": "redis-datasource", "uid": "Valkey" },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "11.2.0",
       "targets": [
         {
-          "command": "zrevrange",
+          "command": "",
+          "datasource": {
+            "type": "redis-datasource",
+            "uid": "Valkey"
+          },
           "key": "top_ram",
+          "query": "ZREVRANGE top_ram 0 4 WITHSCORES",
+          "refId": "A",
           "start": "0",
           "stop": "4",
-          "withScores": true,
-          "refId": "A"
+          "type": "cli",
+          "withScores": true
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "kbytes" } }
+      "title": "TOP 5 +RAM",
+      "type": "table"
     },
     {
+      "datasource": {
+        "default": true,
+        "type": "redis-datasource",
+        "uid": "Valkey"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 14
+      },
       "id": 6,
-      "title": "TOP 5 +CPU",
-      "type": "bargauge",
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 14 },
-      "datasource": { "type": "redis-datasource", "uid": "Valkey" },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "11.2.0",
       "targets": [
         {
-          "command": "zrevrange",
+          "command": "",
+          "datasource": {
+            "type": "redis-datasource",
+            "uid": "Valkey"
+          },
           "key": "top_cpu",
+          "query": "ZREVRANGE top_cpu 0 4 WITHSCORES",
+          "refId": "A",
           "start": "0",
           "stop": "4",
-          "withScores": true,
-          "refId": "A"
+          "type": "cli",
+          "withScores": true
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "percent" } }
+      "title": "TOP 5 +CPU",
+      "type": "table"
     },
     {
+      "datasource": {
+        "default": true,
+        "type": "redis-datasource",
+        "uid": "Valkey"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "purple",
+            "mode": "fixed"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 14
+      },
       "id": 7,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "command": "get",
+          "datasource": {
+            "type": "redis-datasource",
+            "uid": "Valkey"
+          },
+          "key": "ebpf_kill_events_total",
+          "keyName": "ebpf_kill_events_total",
+          "query": "",
+          "refId": "A",
+          "type": "command"
+        }
+      ],
       "title": "eBPF EVENT COUNTER",
-      "type": "stat",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 14 },
-      "datasource": { "type": "redis-datasource", "uid": "Valkey" },
-      "targets": [{ "command": "get", "key": "ebpf_kill_events_total", "refId": "A" }],
-      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "purple" } } }
+      "type": "stat"
     }
-  ]
+  ],
+  "refresh": "",
+  "schemaVersion": 39,
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "PANEL DE CONTENEDORES POR 202101149",
+  "uid": "ffxp86s9aszcwb",
+  "version": 3,
+  "weekStart": ""
 }
