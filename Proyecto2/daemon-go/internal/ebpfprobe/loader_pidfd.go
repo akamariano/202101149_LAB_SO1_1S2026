@@ -76,12 +76,12 @@ func (p *PidfdProbe) readLoop() {
 
 // WaitForKillConfirmation blocks until a SIGKILL event arrives on the
 // ring buffer or the timeout expires. Returns true if an event was confirmed.
-func (p *PidfdProbe) WaitForKillConfirmation(timeout time.Duration) bool {
+func (p *PidfdProbe) WaitForKillConfirmation(timeout time.Duration) (PidfdKillEvent, bool) {
 	select {
-	case <-p.ch:
-		return true
+	case evt := <-p.ch:
+		return evt, true
 	case <-time.After(timeout):
-		return false
+		return PidfdKillEvent{}, false
 	}
 }
 

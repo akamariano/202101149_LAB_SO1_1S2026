@@ -8,6 +8,9 @@ Todo esto se ejecuta en el Ubuntu dual boot (ASUS X555LN), no en el Mac, porque 
 ### Usando Script sh
 cd ~/202101149_LAB_SO1_1S2026/Proyecto2
 ./rebuild_all.sh
+
+cd ~/202101149_LAB_SO1_1S2026/Proyecto2
+./demo_calificacion.sh
 ### 1. Compilar y cargar el módulo de kernel
 
 Se recomienda recompilar siempre, incluso si el módulo ya estaba cargado de una sesión anterior, porque el kernel de Ubuntu puede haberse actualizado en segundo plano desde la última vez (ver la sección de problemas conocidos más abajo).

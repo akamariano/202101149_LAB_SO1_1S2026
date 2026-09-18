@@ -85,7 +85,7 @@ func EvaluateAndManageContainers(containers []procparser.ContainerInfo) ([]Decis
 		for i := 0; i < excessCount; i++ {
 			c := lowContainers[i] // El más pesado del exceso
 			reason := fmt.Sprintf("Exceso de bajo consumo (Límite: 3, eliminando ID: %s con RSS: %d KB)", c.ID, c.RSSKB)
-			if confirmed, err := stopAndRemoveContainer(c.ID); err == nil {
+			if confirmed, err := stopAndRemoveContainer(c.ID, c.PID); err == nil {
 	logs = append(logs, DecisionLog{
 		Timestamp:     time.Now().Format(time.RFC3339),
 		Action:        "KILL",
@@ -105,7 +105,7 @@ func EvaluateAndManageContainers(containers []procparser.ContainerInfo) ([]Decis
 		for i := 0; i < excessCount; i++ {
 			c := highContainers[i] // El más pesado del exceso
 			reason := fmt.Sprintf("Exceso de alto consumo (Límite: 2, eliminando ID: %s con %%CPU: %.1f%%)", c.ID, c.CPUPerc)
-			if confirmed, err := stopAndRemoveContainer(c.ID); err == nil {
+			if confirmed, err := stopAndRemoveContainer(c.ID, c.PID); err == nil {
 	logs = append(logs, DecisionLog{
 		Timestamp:     time.Now().Format(time.RFC3339),
 		Action:        "KILL",
@@ -175,8 +175,8 @@ func isProtected(c procparser.ContainerInfo) bool {
 	return false
 }
 
-func stopAndRemoveContainer(containerID string) (bool, error) {
-	log.Printf("[MANAGER] Deteniendo y eliminando contenedor: %s", containerID)
+func stopAndRemoveContainer(containerID string, containerPID int64) (bool, error) {
+	log.Printf("[MANAGER] Deteniendo y eliminando contenedor: %s (PID receptor: %d)", containerID, containerPID)
 	cmd := exec.Command("sudo", "docker", "rm", "-f", containerID)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -186,7 +186,11 @@ func stopAndRemoveContainer(containerID string) (bool, error) {
 
 	confirmed := false
 	if activePidfdProbe != nil {
-		confirmed = activePidfdProbe.WaitForKillConfirmation(ebpfConfirmTimeout)
+		evt, ok := activePidfdProbe.WaitForKillConfirmation(ebpfConfirmTimeout)
+		if ok {
+			confirmed = true
+			log.Printf("[EBPF] Evento capturado: PID emisor=%d | PID receptor=%d | Senal=SIGKILL(%d)", evt.CallerPID, containerPID, evt.Signal)
+		}
 	}
 
 	if confirmed {
