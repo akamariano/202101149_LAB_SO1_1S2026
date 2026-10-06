@@ -14,7 +14,7 @@ vendor/
 *.order
 .*.cmd
 .tmp_versions/
-
+*PLAN.md
 # Sistema
 .DS_Store
 
