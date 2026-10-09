@@ -1,0 +1,44 @@
+# Deployment 2 de Go: gRPC Server (+ rabbit-writer en el bloque 4).
+# Las réplicas (1 o 2) se cambian aquí para el análisis de rendimiento.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-writer
+  namespace: mumnk8s
+  labels: { app: go-writer }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: go-writer }
+  template:
+    metadata:
+      labels: { app: go-writer }
+    spec:
+      containers:
+        - name: grpc-server
+          image: 34-45-250-177.sslip.io/mumnk8s/grpc-server:v2
+          ports:
+            - containerPort: 50051
+          resources:
+            requests: { cpu: 100m, memory: 32Mi }
+            limits: { cpu: 500m, memory: 128Mi }
+          # Probe gRPC nativa de Kubernetes: llama al servicio grpc.health.v1.Health
+          readinessProbe:
+            grpc: { port: 50051 }
+            periodSeconds: 5
+---
+# Headless (clusterIP: None): no hay IP virtual; el DNS responde con las IPs de los pods.
+# Así el cliente gRPC puede balancear por llamada (round_robin) entre réplicas, en vez de
+# quedar fijo a una sola por la conexión HTTP/2 persistente.
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-writer-grpc
+  namespace: mumnk8s
+spec:
+  clusterIP: None
+  selector: { app: go-writer }
+  ports:
+    - name: grpc
+      port: 50051
+      targetPort: 50051

@@ -86,9 +86,9 @@ Locust ──HTTPS──▶ Gateway API ──/grpc-202101149──▶ API REST 
 |---|---|---|---|
 | Generador de carga | Locust | Máquina local | Pendiente |
 | Exposición | Kubernetes Gateway API (GKE) | GKE | Habilitado (bloque 1) |
-| API REST | Rust | GKE | Pendiente |
-| Deployment 1 | Go: REST + cliente gRPC | GKE | Pendiente |
-| Deployment 2 | Go: servidor gRPC + writer de RabbitMQ | GKE | Pendiente |
+| API REST | Rust | GKE | **Funcionando** (bloque 2) |
+| Deployment 1 | Go: REST + cliente gRPC | GKE | **Funcionando** (bloque 2) |
+| Deployment 2 | Go: servidor gRPC + writer de RabbitMQ | GKE | Servidor gRPC funcionando; writer pendiente (bloque 4) |
 | Broker | RabbitMQ | GKE | Pendiente |
 | Consumer | Go | GKE | Pendiente |
 | Almacenamiento | Valkey, administrado por el Operator | GKE | Pendiente |
@@ -183,13 +183,91 @@ Interfaz web de Zot servida por HTTPS (`https://34-45-250-177.sslip.io/home`), c
 
 
 ## 6. Flujo completo de datos
-_Pendiente (bloques 2 a 6)._
+
+Todos los componentes viven en el namespace `mumnk8s`.
+
+| # | Origen → destino | Protocolo | Formato | Dirección |
+|---|---|---|---|---|
+| 1 | Locust → Gateway API | HTTPS | JSON | IP pública del Gateway, `/grpc-202101149` _(bloque 3)_ |
+| 2 | Gateway → `rust-api` | HTTP | JSON | `rust-api:8080/grpc-202101149` |
+| 3 | `rust-api` → `go-api` (contenedor `api-rest`) | HTTP/1.1 REST | JSON | `http://go-api:8080/reports` |
+| 4 | `api-rest` → `grpc-client` (mismo pod) | gRPC | Protobuf | `localhost:50050` |
+| 5 | `grpc-client` → `go-writer` (contenedor `grpc-server`) | gRPC (HTTP/2) | Protobuf | `dns:///go-writer-grpc.mumnk8s.svc.cluster.local:50051` |
+| 6 | `grpc-server` → `rabbit-writer` → RabbitMQ | AMQP | JSON | _(bloque 4)_ |
+| 7 | RabbitMQ → consumer → Valkey | AMQP / RESP | | _(bloque 5)_ |
+| 8 | Valkey → Grafana | Redis datasource | | _(bloque 6)_ |
+
+Validación en cada capa:
+- **Rust** rechaza con `400` los países fuera de `USA, RUS, CHN, ESP, GTM` y los valores fuera de rango (aviones 0–50, barcos 0–30). Normaliza el país a mayúsculas.
+- **api-rest (Go)** convierte el país al enum del `.proto` (`"GTM"` → `Countries_gtm`) y valida que el timestamp sea RFC3339.
+- Si una capa posterior falla, la anterior responde `502 Bad Gateway`.
 
 ## 7. Kubernetes Gateway API
 _Pendiente (bloque 3)._
 
 ## 8. Comunicación REST y gRPC
-_Pendiente (bloque 2)._
+
+### 8.1 Contrato gRPC
+[proto/warreport.proto](proto/warreport.proto) es la propuesta del enunciado (paquete `wartweets`, servicio `WarReportService.SendReport`). El código Go se genera con:
+
+```bash
+cd go-services
+protoc -I ../proto --go_out=proto --go_opt=paths=source_relative \
+       --go-grpc_out=proto --go-grpc_opt=paths=source_relative ../proto/warreport.proto
+```
+
+**Todos los saltos gRPC usan el mismo servicio `WarReportService`.** Cada contenedor es servidor del salto anterior y cliente del siguiente, así que la interfaz no cambia a lo largo de la cadena.
+
+### 8.2 API REST en Rust ([rust-api/src/main.rs](rust-api/src/main.rs))
+| Aspecto | Implementación |
+|---|---|
+| Framework | `axum` 0.8 sobre `tokio`, un runtime asíncrono multihilo |
+| Rutas | `POST /grpc-202101149` (la ruta llega igual desde el Gateway) y `GET /health` para las probes |
+| Reenvío | `reqwest::Client` compartido (`Arc`), con pool de conexiones keep-alive y timeout de 5 s |
+| Configuración | Variables de entorno `CARNET`, `GO_API_URL`, `HTTP_ADDR` |
+| Imagen | Binario estático `x86_64-unknown-linux-musl` compilado con `cargo-zigbuild` en una imagen `alpine` |
+
+### 8.3 Deployment 1: `go-api` (2 contenedores)
+Los dos contenedores del pod comparten el mismo *network namespace*, así que se comunican por `localhost`.
+
+| Contenedor | Rol | Concurrencia |
+|---|---|---|
+| `api-rest` ([cmd/api-rest](go-services/cmd/api-rest/main.go)) | HTTP `:8080`. Recibe el JSON de Rust, lo valida, lo convierte a protobuf y llama a `SendReport` en `localhost:50050` | `net/http` atiende cada petición en una goroutine; usa una sola conexión gRPC (HTTP/2) multiplexada y contadores `atomic` |
+| `grpc-client` ([cmd/grpc-client](go-services/cmd/grpc-client/main.go)) | **Patrón ambassador**: expone `WarReportService` solo en `localhost:50050` y reenvía cada llamada al gRPC Server del Deployment 2 | El servidor gRPC atiende cada llamada en una goroutine; una sola `ClientConn` hacia el upstream, con balanceo `round_robin` |
+
+¿Por qué un ambassador? Toda la lógica de la conexión remota (descubrimiento por DNS, balanceo entre réplicas y timeouts) queda en un solo contenedor. `api-rest` no sabe dónde vive el servidor.
+
+### 8.4 Deployment 2: `go-writer`
+| Contenedor | Rol |
+|---|---|
+| `grpc-server` ([cmd/grpc-server](go-services/cmd/grpc-server/main.go)) | gRPC `:50051`. Recibe los reportes y registra cada 10 s el total atendido por la réplica. Expone `grpc.health.v1` (lo usa la `readinessProbe` gRPC nativa) y *reflection* (para probarlo con `grpcurl`) |
+| `rabbit-writer` | _(bloque 4)_ Publica en RabbitMQ |
+
+### 8.5 Balanceo gRPC entre réplicas
+gRPC usa conexiones HTTP/2 **persistentes**. Con un Service normal (ClusterIP), kube-proxy balancea **conexiones**, no peticiones: el cliente abre una sola conexión y **todo el tráfico va a una réplica**, aunque haya dos.
+
+Solución aplicada:
+1. **Service headless** `go-writer-grpc` (`clusterIP: None`). El DNS devuelve la IP de cada pod.
+2. **El cliente usa `dns:///…` con `round_robin`**: abre una conexión por pod y reparte las llamadas.
+3. **`MaxConnectionAge: 30s` en el servidor.** El resolver DNS de grpc-go no vuelve a consultar por su cuenta. Al cerrar el servidor las conexiones cada 30 s (con GOAWAY), el cliente vuelve a resolver y descubre las réplicas nuevas tras un escalado.
+
+Prueba con `go-writer` en 2 réplicas y 1000 peticiones (25 concurrentes):
+
+| Réplica | Reportes atendidos |
+|---|---|
+| `go-writer-849d95595c-d2djb` | 500 |
+| `go-writer-849d95595c-gq472` | 500 |
+
+Antes de agregar `MaxConnectionAge`, la réplica nueva recibió **0** reportes: el cliente seguía conectado solo a la original.
+
+### 8.6 Pruebas del bloque 2
+| Prueba | Resultado |
+|---|---|
+| Reporte válido (`GTM`, 42, 14) | `200 reporte enviado` |
+| País `MEX` | `400 país no soportado: MEX` |
+| `warplanes_in_air: 99` | `400 warplanes_in_air fuera de rango (0-50)` |
+| `grpcurl` directo al servidor | `{"status": "recibido por <pod>"}` |
+| 1000 peticiones concurrentes en GKE | 1000 × `200` |
 
 ## 9. RabbitMQ
 _Pendiente (bloque 4)._
@@ -219,6 +297,7 @@ _Pendiente (bloque 8, opcional)._
 | `ZONE_RESOURCE_POOL_EXHAUSTED` al crear la VM y el clúster | No había capacidad N1 en `us-central1-a` ni en `us-central1-b` | El script prueba varias zonas; todo quedó en `us-central1-c` |
 | No se podía borrar el clúster atascado en `us-central1-a` | GKE no permite borrar un clúster mientras está en `CREATE_CLUSTER`, y esa operación no se puede cancelar | Se creó el clúster en otra zona (el nombre es único por zona) y el viejo se borra cuando termina la operación |
 | `Compute Engine API has not been used` | Las APIs vienen deshabilitadas en un proyecto nuevo | `gcloud services enable compute.googleapis.com container.googleapis.com` |
+| Con 2 réplicas de `go-writer`, la nueva no recibía tráfico | Conexión HTTP/2 persistente, y el resolver DNS de grpc-go no vuelve a consultar | Service headless, `round_robin` y `MaxConnectionAge` en el servidor (sección 8.5) |
 | El formula `rustup` de Homebrew no trae `rustup-init` | Cambio de empaquetado (keg-only) | Se usa `$(brew --prefix rustup)/bin/rustup default stable` |
 
 ## 17. Conclusiones

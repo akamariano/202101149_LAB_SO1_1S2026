@@ -1,0 +1,53 @@
+# Deployment 1 de Go: un pod con 2 contenedores que comparten la red (localhost).
+#   api-rest    : HTTP :8080, recibe el JSON de Rust y lo convierte a protobuf
+#   grpc-client : ambassador en localhost:50050, reenvía al gRPC Server (Deployment 2)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-api
+  namespace: mumnk8s
+  labels: { app: go-api }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: go-api }
+  template:
+    metadata:
+      labels: { app: go-api }
+    spec:
+      containers:
+        - name: api-rest
+          image: 34-45-250-177.sslip.io/mumnk8s/api-rest:v1
+          ports:
+            - containerPort: 8080
+          env:
+            - name: GRPC_CLIENT_ADDR
+              value: localhost:50050
+          resources:
+            requests: { cpu: 100m, memory: 32Mi }
+            limits: { cpu: 500m, memory: 128Mi }
+          readinessProbe:
+            httpGet: { path: /health, port: 8080 }
+            periodSeconds: 5
+        - name: grpc-client
+          image: 34-45-250-177.sslip.io/mumnk8s/grpc-client:v1
+          env:
+            - name: GRPC_LISTEN
+              value: localhost:50050
+            # Service headless: el DNS devuelve la IP de cada réplica del servidor
+            - name: GRPC_SERVER_ADDR
+              value: dns:///go-writer-grpc.mumnk8s.svc.cluster.local:50051
+          resources:
+            requests: { cpu: 100m, memory: 32Mi }
+            limits: { cpu: 500m, memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-api
+  namespace: mumnk8s
+spec:
+  selector: { app: go-api }
+  ports:
+    - port: 8080
+      targetPort: 8080

@@ -1,0 +1,47 @@
+# API REST en Rust: recibe el tráfico del Gateway en /grpc-202101149.
+# El HPA (bloque 3) la escalará de 1 a 3 réplicas: el porcentaje de CPU se calcula
+# sobre resources.requests.cpu, por eso los requests deben estar definidos.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rust-api
+  namespace: mumnk8s
+  labels: { app: rust-api }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: rust-api }
+  template:
+    metadata:
+      labels: { app: rust-api }
+    spec:
+      containers:
+        - name: rust-api
+          image: 34-45-250-177.sslip.io/mumnk8s/rust-api:v1
+          ports:
+            - containerPort: 8080
+          env:
+            - name: CARNET
+              value: "202101149"
+            - name: GO_API_URL
+              value: http://go-api:8080/reports
+          resources:
+            requests: { cpu: 100m, memory: 64Mi }
+            limits: { cpu: 500m, memory: 128Mi }
+          readinessProbe:
+            httpGet: { path: /health, port: 8080 }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /health, port: 8080 }
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rust-api
+  namespace: mumnk8s
+spec:
+  selector: { app: rust-api }
+  ports:
+    - port: 8080
+      targetPort: 8080

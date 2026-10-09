@@ -93,10 +93,44 @@ kubectl get gatewayclass          # aparecen unos minutos después de crear el c
 Sube `nginx:alpine` (amd64) a `prueba/nginx:v1` en Zot y crea un pod en GKE que la descarga.
 
 ## 5. Construir y publicar las imágenes
-_Pendiente (bloque 2)._
+
+Requiere Docker Desktop abierto.
+
+```bash
+./scripts/10_build_push.sh                     # todas, con tag v1
+TAG=v2 ./scripts/10_build_push.sh grpc-server  # una sola, con otro tag
+```
+
+| Imagen | Contexto | Cómo se compila para amd64 |
+|---|---|---|
+| `mumnk8s/rust-api` | `rust-api/` | `cargo-zigbuild` en una etapa `--platform=$BUILDPLATFORM` que genera un binario musl estático |
+| `mumnk8s/api-rest`, `grpc-client`, `grpc-server` | `go-services/` (una Dockerfile, `--build-arg SERVICE=<binario>`) | `GOOS=linux GOARCH=amd64 CGO_ENABLED=0` (cross-compile nativo de Go) |
+
+En ambos casos el compilador corre nativo en la Mac y solo el binario resultante es amd64, así que no hay emulación. Compilar las cuatro imágenes desde cero toma unos 2.5 minutos.
+
+Si cambias el `.proto`, regenera el código Go antes de compilar:
+
+```bash
+cd go-services
+protoc -I ../proto --go_out=proto --go_opt=paths=source_relative \
+       --go-grpc_out=proto --go-grpc_opt=paths=source_relative ../proto/warreport.proto
+```
 
 ## 6. Desplegar los componentes en GKE
-_Pendiente (bloques 2 a 6)._
+
+```bash
+kubectl apply -f k8s/
+kubectl -n mumnk8s get pods          # go-api debe mostrar 2/2
+```
+
+Prueba sin Gateway (port-forward):
+
+```bash
+kubectl -n mumnk8s port-forward svc/rust-api 18080:8080 &
+curl -X POST localhost:18080/grpc-202101149 -H 'content-type: application/json' \
+  -d '{"country":"GTM","warplanes_in_air":42,"warships_in_water":14,"timestamp":"2026-10-06T23:40:00Z"}'
+kubectl -n mumnk8s logs deploy/go-writer -c grpc-server
+```
 
 ## 7. Ejecutar Locust
 _Pendiente (bloque 3)._
