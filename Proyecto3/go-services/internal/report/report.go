@@ -53,3 +53,13 @@ func Env(key, def string) string {
 	}
 	return def
 }
+
+// FromProto hace la conversión inversa: del mensaje protobuf al JSON que viaja por RabbitMQ.
+func FromProto(req *pb.WarReportRequest) WarReport {
+	return WarReport{
+		Country:         CountryCode(req.GetCountry()),
+		WarplanesInAir:  req.GetWarplanesInAir(),
+		WarshipsInWater: req.GetWarshipsInWater(),
+		Timestamp:       req.GetTimestamp(),
+	}
+}

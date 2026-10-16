@@ -1,0 +1,37 @@
+# Service de escritura: apunta solo al primario (pod -0). Lo usan el consumer y Grafana.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "valkey.name" . }}
+  labels: {{- include "valkey.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "valkey.selector" . | nindent 4 }}
+    statefulset.kubernetes.io/pod-name: {{ include "valkey.name" . }}-0
+  ports:
+    - { name: valkey, port: 6379, targetPort: 6379 }
+---
+# Service de lectura: reparte entre todos los pods (primario y réplicas).
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "valkey.name" . }}-read
+  labels: {{- include "valkey.labels" . | nindent 4 }}
+spec:
+  selector: {{- include "valkey.selector" . | nindent 4 }}
+  ports:
+    - { name: valkey, port: 6379, targetPort: 6379 }
+---
+# Headless: da a cada pod un nombre DNS estable (<nombre>-0.<nombre>-headless),
+# que las réplicas usan para encontrar al primario.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "valkey.name" . }}-headless
+  labels: {{- include "valkey.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector: {{- include "valkey.selector" . | nindent 4 }}
+  ports:
+    - { name: valkey, port: 6379, targetPort: 6379 }

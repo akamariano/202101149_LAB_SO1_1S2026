@@ -1,0 +1,6 @@
+apiVersion: v2
+name: valkeyinstance
+description: Valkey (StatefulSet + PVC + Services) administrado por el operador mumnk8s
+type: application
+version: 0.1.0
+appVersion: "8.1"

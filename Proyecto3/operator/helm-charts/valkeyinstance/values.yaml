@@ -1,0 +1,22 @@
+# Valores por defecto. Cada campo de spec en el CR ValkeyInstance sobrescribe uno de estos.
+
+# 1 = solo primario. 2 o más = primario (pod -0) + réplicas de solo lectura.
+replicas: 1
+
+image:
+  repository: 34-45-250-177.sslip.io/mumnk8s/valkey
+  tag: 8.1-alpine
+
+# Límite de memoria de datos y qué hacer al alcanzarlo.
+# volatile-lru: solo expulsa claves con TTL (las series de tiempo); los agregados
+# (máximos, tops, contadores) no tienen TTL y nunca se pierden.
+maxmemory: 200mb
+maxmemoryPolicy: volatile-lru
+
+# Tamaño del PVC de cada pod (ahí vive el log AOF)
+persistence:
+  size: 1Gi
+
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits: { cpu: 500m, memory: 300Mi }

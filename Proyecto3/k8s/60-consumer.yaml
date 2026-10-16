@@ -1,0 +1,35 @@
+# Consumer: lee la cola war_reports de RabbitMQ y guarda cada reporte en Valkey.
+# Escala con réplicas: RabbitMQ reparte los mensajes entre todos los consumers.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consumer
+  namespace: mumnk8s
+  labels: { app: consumer }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: consumer }
+  template:
+    metadata:
+      labels: { app: consumer }
+    spec:
+      containers:
+        - name: consumer
+          image: 34-45-250-177.sslip.io/mumnk8s/consumer:v2
+          env:
+            - name: WORKERS
+              value: "8"
+            # Service de escritura creado por el operador (CR ValkeyInstance "valkey")
+            - name: VALKEY_ADDR
+              value: valkey:6379
+            - name: RABBITMQ_USER
+              valueFrom: { secretKeyRef: { name: rabbitmq-cred, key: username } }
+            - name: RABBITMQ_PASS
+              valueFrom: { secretKeyRef: { name: rabbitmq-cred, key: password } }
+            # $(VAR) lo expande Kubernetes con las variables definidas arriba
+            - name: RABBITMQ_URL
+              value: amqp://$(RABBITMQ_USER):$(RABBITMQ_PASS)@rabbitmq:5672/
+          resources:
+            requests: { cpu: 100m, memory: 32Mi }
+            limits: { cpu: 500m, memory: 128Mi }

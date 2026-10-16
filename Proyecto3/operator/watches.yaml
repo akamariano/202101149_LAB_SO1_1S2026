@@ -1,0 +1,6 @@
+# Use the 'create api' subcommand to add watches to this file.
+- group: mumnk8s.so1.usac
+  version: v1alpha1
+  kind: ValkeyInstance
+  chart: helm-charts/valkeyinstance
+# +kubebuilder:scaffold:watch

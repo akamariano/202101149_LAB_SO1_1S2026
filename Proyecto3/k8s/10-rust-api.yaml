@@ -26,8 +26,10 @@ spec:
             - name: GO_API_URL
               value: http://go-api:8080/reports
           resources:
+            # Bajo carga usa ~125Mi (conexiones keep-alive abiertas por el balanceador);
+            # con 128Mi quedaba al borde de un OOMKill.
             requests: { cpu: 100m, memory: 64Mi }
-            limits: { cpu: 500m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 256Mi }
           readinessProbe:
             httpGet: { path: /health, port: 8080 }
             periodSeconds: 5

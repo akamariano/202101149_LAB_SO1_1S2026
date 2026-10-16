@@ -1,4 +1,6 @@
-# Deployment 2 de Go: gRPC Server (+ rabbit-writer en el bloque 4).
+# Deployment 2 de Go: un pod con 2 contenedores que comparten la red (localhost).
+#   grpc-server   : gRPC :50051, recibe del Deployment 1 y reenvía a localhost:50052
+#   rabbit-writer : gRPC solo en localhost:50052, publica cada reporte en RabbitMQ
 # Las réplicas (1 o 2) se cambian aquí para el análisis de rendimiento.
 apiVersion: apps/v1
 kind: Deployment
@@ -16,7 +18,7 @@ spec:
     spec:
       containers:
         - name: grpc-server
-          image: 34-45-250-177.sslip.io/mumnk8s/grpc-server:v2
+          image: 34-45-250-177.sslip.io/mumnk8s/grpc-server:v3
           ports:
             - containerPort: 50051
           resources:
@@ -26,6 +28,20 @@ spec:
           readinessProbe:
             grpc: { port: 50051 }
             periodSeconds: 5
+        - name: rabbit-writer
+          image: 34-45-250-177.sslip.io/mumnk8s/rabbit-writer:v1
+          env:
+            - name: GRPC_LISTEN
+              value: localhost:50052
+            - name: RABBITMQ_USER
+              valueFrom: { secretKeyRef: { name: rabbitmq-cred, key: username } }
+            - name: RABBITMQ_PASS
+              valueFrom: { secretKeyRef: { name: rabbitmq-cred, key: password } }
+            - name: RABBITMQ_URL
+              value: amqp://$(RABBITMQ_USER):$(RABBITMQ_PASS)@rabbitmq:5672/
+          resources:
+            requests: { cpu: 100m, memory: 32Mi }
+            limits: { cpu: 500m, memory: 128Mi }
 ---
 # Headless (clusterIP: None): no hay IP virtual; el DNS responde con las IPs de los pods.
 # Así el cliente gRPC puede balancear por llamada (round_robin) entre réplicas, en vez de

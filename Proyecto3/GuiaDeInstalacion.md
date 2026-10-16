@@ -104,9 +104,9 @@ TAG=v2 ./scripts/10_build_push.sh grpc-server  # una sola, con otro tag
 | Imagen | Contexto | Cómo se compila para amd64 |
 |---|---|---|
 | `mumnk8s/rust-api` | `rust-api/` | `cargo-zigbuild` en una etapa `--platform=$BUILDPLATFORM` que genera un binario musl estático |
-| `mumnk8s/api-rest`, `grpc-client`, `grpc-server` | `go-services/` (una Dockerfile, `--build-arg SERVICE=<binario>`) | `GOOS=linux GOARCH=amd64 CGO_ENABLED=0` (cross-compile nativo de Go) |
+| `mumnk8s/api-rest`, `grpc-client`, `grpc-server`, `rabbit-writer`, `consumer` | `go-services/` (una Dockerfile, `--build-arg SERVICE=<binario>`) | `GOOS=linux GOARCH=amd64 CGO_ENABLED=0` (cross-compile nativo de Go) |
 
-En ambos casos el compilador corre nativo en la Mac y solo el binario resultante es amd64, así que no hay emulación. Compilar las cuatro imágenes desde cero toma unos 2.5 minutos.
+En ambos casos el compilador corre nativo en la Mac y solo el binario resultante es amd64, así que no hay emulación. Compilar todas las imágenes desde cero toma unos 3 minutos.
 
 Si cambias el `.proto`, regenera el código Go antes de compilar:
 
@@ -116,11 +116,27 @@ protoc -I ../proto --go_out=proto --go_opt=paths=source_relative \
        --go-grpc_out=proto --go-grpc_opt=paths=source_relative ../proto/warreport.proto
 ```
 
+Imágenes de terceros (RabbitMQ): se copian de Docker Hub a Zot una sola vez.
+
+```bash
+./scripts/11_mirror_externas.sh
+```
+
 ## 6. Desplegar los componentes en GKE
 
 ```bash
+kubectl apply -f k8s/00-namespace.yaml
+./scripts/30_rabbitmq_secret.sh      # credenciales de RabbitMQ (Secret rabbitmq-cred)
 kubectl apply -f k8s/
-kubectl -n mumnk8s get pods          # go-api debe mostrar 2/2
+kubectl -n mumnk8s get pods          # go-api y go-writer deben mostrar 2/2
+```
+
+Ver la cola y la UI de RabbitMQ (usuario y contraseña en `.secrets/rabbitmq.env`):
+
+```bash
+kubectl -n mumnk8s exec rabbitmq-0 -- rabbitmqctl list_queues name messages consumers
+kubectl -n mumnk8s port-forward svc/rabbitmq 15672:15672    # http://localhost:15672
+kubectl -n mumnk8s logs deploy/consumer -f
 ```
 
 Prueba sin Gateway (port-forward):
@@ -132,8 +148,49 @@ curl -X POST localhost:18080/grpc-202101149 -H 'content-type: application/json' 
 kubectl -n mumnk8s logs deploy/go-writer -c grpc-server
 ```
 
-## 7. Ejecutar Locust
-_Pendiente (bloque 3)._
+## 7. Gateway, HPA y Locust
+
+`kubectl apply -f k8s/` ya crea el Gateway, la HTTPRoute y el HPA. Para obtener la IP pública:
+
+```bash
+./scripts/20_gateway_ip.sh     # espera la IP (3 a 8 min) y hace un POST de prueba
+```
+
+Locust con interfaz web (http://localhost:8089):
+
+```bash
+locust -f locust/locustfile.py --host http://<IP_GATEWAY>
+```
+
+Locust sin interfaz, y en otra terminal el escalado:
+
+```bash
+locust -f locust/locustfile.py --host http://<IP_GATEWAY> --headless -u 200 -r 20 -t 4m
+kubectl -n mumnk8s get hpa rust-api -w
+```
+
+## 8. Operador (Valkey y Grafana)
+
+Requiere `operator-sdk` y `helm` (instalados en el paso 0) y Docker Desktop abierto.
+
+```bash
+./scripts/11_mirror_externas.sh        # incluye valkey/valkey:8.1-alpine
+./operator/build_deploy.sh             # imagen del operador en Zot + CRDs, RBAC y manager
+kubectl -n mumnk8s-operator-system get pods
+kubectl apply -f k8s/70-valkey.yaml    # CR ValkeyInstance
+kubectl -n mumnk8s get valkeyinstance,sts,svc,pvc
+```
+
+`kubectl apply -f k8s/` falla en `70-valkey.yaml` si el operador aún no está instalado, porque el CRD no existe. Instala el operador primero.
+
+Ver los datos que escribe el consumer:
+
+```bash
+kubectl -n mumnk8s exec valkey-0 -- valkey-cli get reports:GTM
+kubectl -n mumnk8s exec valkey-0 -- valkey-cli zrevrange top:planes 0 4 withscores
+```
+
+Si cambias el chart, vuelve a ejecutar `TAG=v2 ./operator/build_deploy.sh`: los charts van dentro de la imagen del operador.
 
 ---
 
@@ -153,4 +210,6 @@ La IP estática, los discos y las imágenes de Zot se conservan.
 | `ZONE_RESOURCE_POOL_EXHAUSTED` | No hay capacidad N1 en esa zona. Cambiar `ZONE` en `config.env` (para la VM, el script ya prueba varias) |
 | `gke-gcloud-auth-plugin not found` | Ejecutar `gcloud components install gke-gcloud-auth-plugin` y verificar que `$(brew --prefix)/share/google-cloud-sdk/bin` esté en el PATH |
 | `docker login` se queda colgado | Revisar si el llavero de macOS abrió una ventana pidiendo permiso |
+| `kubectl`: `gke-gcloud-auth-plugin not found` en una terminal nueva | Esa terminal no cargó el PATH de gcloud. Ejecutar `export PATH="/opt/homebrew/share/google-cloud-sdk/bin:$PATH"` |
+| El Gateway responde `502` | El health check del balanceador falla. Revisar que exista la `HealthCheckPolicy` y que `/health` responda |
 | Pod en GKE con `exec format error` | La imagen se construyó para arm64. Reconstruir con `--platform linux/amd64` |

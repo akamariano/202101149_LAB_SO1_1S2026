@@ -8,7 +8,7 @@ source "$SECRETS_DIR/zot.env"
 
 TAG="${TAG:-v1}"
 REG="$ZOT_DOMAIN/mumnk8s"
-GO_SERVICES="api-rest grpc-client grpc-server"
+GO_SERVICES="api-rest grpc-client grpc-server rabbit-writer consumer"
 ALL="rust-api $GO_SERVICES"
 TARGETS="${*:-$ALL}"
 

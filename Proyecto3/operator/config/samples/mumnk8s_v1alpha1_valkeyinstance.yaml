@@ -1,0 +1,13 @@
+# Instancia de Valkey declarada como Custom Resource. El operador mumnk8s (operator/)
+# la reconcilia con su Helm chart: crea StatefulSet, PVC, ConfigMap y Services.
+# Requiere el operador instalado antes (operator/build_deploy.sh).
+apiVersion: mumnk8s.so1.usac/v1alpha1
+kind: ValkeyInstance
+metadata:
+  name: valkey
+  namespace: mumnk8s
+spec:
+  replicas: 1        # 2 para la prueba de rendimiento con réplica
+  maxmemory: 200mb
+  persistence:
+    size: 1Gi

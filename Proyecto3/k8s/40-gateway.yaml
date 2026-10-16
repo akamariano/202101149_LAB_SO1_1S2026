@@ -1,0 +1,51 @@
+# Exposición pública con Gateway API (sustituye al Ingress Controller).
+# Gateway   : el balanceador (lo crea GKE como un Application Load Balancer externo)
+# HTTPRoute : las reglas de enrutamiento que se cuelgan del Gateway
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: mumnk8s-gateway
+  namespace: mumnk8s
+spec:
+  gatewayClassName: gke-l7-global-external-managed
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces: { from: Same }
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: grpc-route
+  namespace: mumnk8s
+spec:
+  parentRefs:
+    - name: mumnk8s-gateway
+  rules:
+    # Flujo principal: Locust -> Gateway -> rust-api. La ruta se reenvía sin cambios.
+    - matches:
+        - path: { type: PathPrefix, value: /grpc-202101149 }
+      backendRefs:
+        - name: rust-api
+          port: 8080
+---
+# El balanceador de GKE revisa la salud de los pods por su cuenta (no usa las probes).
+# Por defecto pide GET / y rust-api responde 404 en esa ruta, así que se le indica /health.
+apiVersion: networking.gke.io/v1
+kind: HealthCheckPolicy
+metadata:
+  name: rust-api-hc
+  namespace: mumnk8s
+spec:
+  default:
+    config:
+      type: HTTP
+      httpHealthCheck:
+        port: 8080
+        requestPath: /health
+  targetRef:
+    group: ""
+    kind: Service
+    name: rust-api

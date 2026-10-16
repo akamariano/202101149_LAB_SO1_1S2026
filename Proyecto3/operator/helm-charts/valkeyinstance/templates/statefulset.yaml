@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "valkey.name" . }}
+  labels: {{- include "valkey.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "valkey.name" . }}-headless
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels: {{- include "valkey.selector" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "valkey.selector" . | nindent 8 }}
+      annotations:
+        # Si cambia la configuración, cambia este hash y los pods se reinician con la nueva
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      containers:
+        - name: valkey
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - { name: valkey, containerPort: 6379 }
+          # El pod -0 es el primario; los demás se declaran réplicas de él.
+          # El nombre DNS estable lo da el Service headless del StatefulSet.
+          command: ["sh", "-c"]
+          args:
+            - |
+              if [ "$HOSTNAME" = "{{ include "valkey.name" . }}-0" ]; then
+                exec valkey-server /conf/valkey.conf
+              else
+                exec valkey-server /conf/valkey.conf --replicaof {{ include "valkey.name" . }}-0.{{ include "valkey.name" . }}-headless 6379
+              fi
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - { name: data, mountPath: /data }
+            - { name: config, mountPath: /conf }
+          readinessProbe:
+            exec: { command: ["valkey-cli", "ping"] }
+            periodSeconds: 5
+          livenessProbe:
+            exec: { command: ["valkey-cli", "ping"] }
+            initialDelaySeconds: 15
+            periodSeconds: 15
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "valkey.name" . }}-config
+  # Un PVC por pod (data-<nombre>-0, -1...). No se borra al eliminar el CR: los datos sobreviven.
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
