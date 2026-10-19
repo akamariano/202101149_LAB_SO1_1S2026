@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: rust-api
-          image: 34-45-250-177.sslip.io/mumnk8s/rust-api:v1
+          image: 34-45-250-177.sslip.io/mumnk8s/rust-api:v3
           ports:
             - containerPort: 8080
           env:
@@ -25,11 +25,16 @@ spec:
               value: "202101149"
             - name: GO_API_URL
               value: http://go-api:8080/reports
+            - name: GO_API_DAPR_URL
+              value: http://go-api:8080/reports-dapr
+            - name: MAX_EN_VUELO
+              value: "512"
           resources:
-            # Bajo carga usa ~125Mi (conexiones keep-alive abiertas por el balanceador);
-            # con 128Mi quedaba al borde de un OOMKill.
-            requests: { cpu: 100m, memory: 64Mi }
-            limits: { cpu: 500m, memory: 256Mi }
+            # La memoria la ponen las conexiones keep-alive que abre el balanceador de Google
+            # (~38KB cada una, y las mantiene 10 min): a ~1300 req/s hubo ~8 800 conexiones por
+            # pod y 381Mi. Con 256Mi y 384Mi hubo OOMKill (sección 14.3).
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 512Mi }
           readinessProbe:
             httpGet: { path: /health, port: 8080 }
             periodSeconds: 5

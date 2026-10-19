@@ -1,0 +1,59 @@
+# Valores del chart oficial falcosecurity/falco 9.2.0 (Falco 0.45.0).
+# Todo se descarga de Zot: la imagen de Falco, la de falcoctl y los dos artifacts OCI
+# que falcoctl instala al arrancar (reglas por defecto y plugin de contenedores).
+# Se copian a Zot con scripts/11_mirror_externas.sh.
+
+image:
+  registry: 34-45-250-177.sslip.io
+  repository: mumnk8s/falco
+  tag: 0.45.0
+
+# modern_ebpf: el probe eBPF viene compilado dentro del binario de Falco (CO-RE), no
+# necesita compilar ni descargar un módulo para el kernel de COS de GKE.
+driver:
+  kind: modern_ebpf
+
+# Plugin que le da a Falco los metadatos del contenedor y del pod (container.name,
+# k8s.ns.name, k8s.pod.name) consultando a containerd.
+collectors:
+  containerEngine:
+    pluginRef: 34-45-250-177.sslip.io/mumnk8s/falco/container:0.7.4
+
+falcoctl:
+  image:
+    registry: 34-45-250-177.sslip.io
+    repository: mumnk8s/falcoctl
+    tag: 0.14.2
+  artifact:
+    install:
+      enabled: true
+    # Sin sidecar que busque actualizaciones de reglas cada semana en internet
+    follow:
+      enabled: false
+  config:
+    # Referencias completas a Zot: no hace falta el índice de falcosecurity
+    indexes: []
+    artifact:
+      install:
+        resolveDeps: false
+        refs:
+          - 34-45-250-177.sslip.io/mumnk8s/falco/falco-rules:5.2.0
+
+falco:
+  # Salida en JSON para leerla mejor con jq; también se imprime en los logs del pod
+  json_output: true
+  # Además del log, cada alerta se envía por HTTP a falco-bridge (k8s/85-falco-bridge.yaml),
+  # que la guarda en Valkey para el panel de Falco en Grafana
+  http_output:
+    enabled: true
+    url: http://falco-bridge.mumnk8s.svc.cluster.local:2801/
+  rules_files:
+    - /etc/falco/falco_rules.yaml
+    - /etc/falco/falco_rules.local.yaml
+    - /etc/falco/rules.d
+
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { cpu: 500m, memory: 512Mi }
+
+# customRules se pasa desde el script con --set-file (k8s/falco/reglas-mumnk8s.yaml)

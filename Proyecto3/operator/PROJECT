@@ -17,4 +17,11 @@ resources:
   group: mumnk8s
   kind: ValkeyInstance
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: so1.usac
+  group: mumnk8s
+  kind: GrafanaInstance
+  version: v1alpha1
 version: "3"

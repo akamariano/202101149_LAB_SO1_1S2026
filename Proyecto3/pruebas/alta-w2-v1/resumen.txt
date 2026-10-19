@@ -1,0 +1,1 @@
+alta-w2-v1  req=148678 fallos=0  p50=140ms p95=250ms  req/s=1238.6

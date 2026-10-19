@@ -1,6 +1,8 @@
 # Deployment 1 de Go: un pod con 2 contenedores que comparten la red (localhost).
 #   api-rest    : HTTP :8080, recibe el JSON de Rust y lo convierte a protobuf
 #   grpc-client : ambassador en localhost:50050, reenvía al gRPC Server (Deployment 2)
+#                 o, en el flujo /dapr, publica con el SDK de Dapr
+#   daprd       : sidecar de Dapr, lo inyecta el dapr-sidecar-injector por las anotaciones
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -14,10 +16,18 @@ spec:
   template:
     metadata:
       labels: { app: go-api }
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: go-api
+        # Solo publica: no hace falta app-port (Dapr no le entrega eventos a este pod)
+        dapr.io/sidecar-cpu-request: 50m
+        dapr.io/sidecar-memory-request: 64Mi
+        dapr.io/sidecar-cpu-limit: 300m
+        dapr.io/sidecar-memory-limit: 128Mi
     spec:
       containers:
         - name: api-rest
-          image: 34-45-250-177.sslip.io/mumnk8s/api-rest:v1
+          image: 34-45-250-177.sslip.io/mumnk8s/api-rest:v2
           ports:
             - containerPort: 8080
           env:
@@ -30,7 +40,7 @@ spec:
             httpGet: { path: /health, port: 8080 }
             periodSeconds: 5
         - name: grpc-client
-          image: 34-45-250-177.sslip.io/mumnk8s/grpc-client:v1
+          image: 34-45-250-177.sslip.io/mumnk8s/grpc-client:v3
           env:
             - name: GRPC_LISTEN
               value: localhost:50050

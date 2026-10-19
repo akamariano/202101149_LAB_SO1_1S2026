@@ -1,0 +1,1 @@
+dapr500-w1-v1  req=30758 fallos=0  p50=270ms p95=500ms  req/s=256.2

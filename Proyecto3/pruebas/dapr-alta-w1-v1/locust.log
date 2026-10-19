@@ -1,0 +1,60 @@
+[2026-10-18 20:46:33,798] Marianos-MacBook-Air/INFO/locust.main: Starting Locust 2.46.7
+[2026-10-18 20:46:33,820] Marianos-MacBook-Air/INFO/locust.runners: Marianos-MacBook-Air.local_69132f246590465a9b5d8208c53e02bd (index 0) reported as ready. 1 workers connected.
+[2026-10-18 20:46:33,820] Marianos-MacBook-Air/INFO/locust.runners: Marianos-MacBook-Air.local_9a7ed01606ca43428ac0c22e8cb3104d (index 1) reported as ready. 2 workers connected.
+[2026-10-18 20:46:33,821] Marianos-MacBook-Air/INFO/locust.runners: Marianos-MacBook-Air.local_4f0f646103fb44cfaaf74590e1755998 (index 2) reported as ready. 3 workers connected.
+[2026-10-18 20:46:33,822] Marianos-MacBook-Air/INFO/locust.runners: Marianos-MacBook-Air.local_4204fb0d318842db80af663c1c87524e (index 3) reported as ready. 4 workers connected.
+[2026-10-18 20:46:34,822] Marianos-MacBook-Air/INFO/locust.main: Run time limit set to 120 seconds
+[2026-10-18 20:46:34,822] Marianos-MacBook-Air/INFO/locust.runners: Sending spawn jobs of 600 users at 50.00 spawn rate to 4 ready workers
+[2026-10-18 20:46:45,907] Marianos-MacBook-Air/INFO/locust.runners: All users spawned: {"SoldadoReportero": 600} (600 total users)
+[2026-10-18 20:48:34,826] Marianos-MacBook-Air/INFO/locust.main: --run-time limit reached, shutting down
+[2026-10-18 20:48:34,827] Marianos-MacBook-Air/INFO/locust.runners: Got quit message from master, shutting down...
+[2026-10-18 20:48:34,827] Marianos-MacBook-Air/INFO/locust.runners: Got quit message from master, shutting down...
+[2026-10-18 20:48:34,827] Marianos-MacBook-Air/INFO/locust.runners: Got quit message from master, shutting down...
+[2026-10-18 20:48:34,827] Marianos-MacBook-Air/INFO/locust.runners: Got quit message from master, shutting down...
+[2026-10-18 20:48:34,878] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 0)
+[2026-10-18 20:48:34,879] Marianos-MacBook-Air/INFO/locust.runners: Worker 'Marianos-MacBook-Air.local_4204fb0d318842db80af663c1c87524e' (index 3) quit. 0 workers ready.
+[2026-10-18 20:48:34,879] Marianos-MacBook-Air/INFO/locust.runners: Worker 'Marianos-MacBook-Air.local_4f0f646103fb44cfaaf74590e1755998' (index 2) quit. 0 workers ready.
+[2026-10-18 20:48:34,879] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 0)
+[2026-10-18 20:48:34,880] Marianos-MacBook-Air/INFO/locust.runners: Worker 'Marianos-MacBook-Air.local_9a7ed01606ca43428ac0c22e8cb3104d' (index 1) quit. 0 workers ready.
+[2026-10-18 20:48:34,880] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 0)
+[2026-10-18 20:48:34,880] Marianos-MacBook-Air/INFO/locust.runners: Worker 'Marianos-MacBook-Air.local_69132f246590465a9b5d8208c53e02bd' (index 0) quit. 0 workers ready.
+[2026-10-18 20:48:34,881] Marianos-MacBook-Air/INFO/locust.runners: The last worker quit, stopping test.
+[2026-10-18 20:48:34,880] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 0)
+[2026-10-18 20:48:35,838] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 1)
+Type     Name                                                                          # reqs      # fails |    Avg     Min     Max    Med |   req/s  failures/s
+--------|----------------------------------------------------------------------------|-------|-------------|-------|-------|-------|-------|--------|-----------
+POST     /dapr-202101149                                                                46768  1822(3.90%) |   1163      88    5170   1100 |  389.58       15.18
+--------|----------------------------------------------------------------------------|-------|-------------|-------|-------|-------|-------|--------|-----------
+         Aggregated                                                                     46768  1822(3.90%) |   1163      88    5170   1100 |  389.58       15.18
+
+Response time percentiles (approximated)
+Type     Name                                                                                  50%    66%    75%    80%    90%    95%    98%    99%  99.9% 99.99%   100% # reqs
+--------|--------------------------------------------------------------------------------|--------|------|------|------|------|------|------|------|------|------|------|------
+POST     /dapr-202101149                                                                      1100   1500   1600   1700   1900   2100   2200   2300   3200   4000   5200  46768
+--------|--------------------------------------------------------------------------------|--------|------|------|------|------|------|------|------|------|------|------|------
+         Aggregated                                                                           1100   1500   1600   1700   1900   2100   2200   2300   3200   4000   5200  46768
+
+Error report
+# occurrences      Error                                                                                               
+------------------|---------------------------------------------------------------------------------------------------------------------------------------------
+9                  POST /dapr-202101149: HTTPError('404 Client Error: Not Found for url: /dapr-202101149')             
+250                POST /dapr-202101149: HTTPError('502 Server Error: Bad Gateway for url: /dapr-202101149')           
+1562               POST /dapr-202101149: HTTPError('503 Server Error: Service Unavailable for url: /dapr-202101149')   
+1                  POST /dapr-202101149: ConnectionResetError(54, 'Connection reset by peer')                          
+------------------|---------------------------------------------------------------------------------------------------------------------------------------------
+
+Traceback (most recent call last):
+  File "src/gevent/greenlet.py", line 912, in gevent._gevent_cgreenlet.Greenlet.run
+  File "/opt/homebrew/Cellar/locust/2.46.7/libexec/lib/python3.14/site-packages/locust/stats.py", line 1170, in stats_writer
+    self.requests_csv_filehandle.seek(requests_csv_data_start)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+2026-10-19T02:48:36Z <Greenlet at 0x10c1ce3e0: <bound method StatsCSVFileWriter.stats_writer of <locust.stats.StatsCSVFileWriter object at 0x10c11aa50>>> failed with ValueError
+
+[2026-10-18 20:48:36,349] Marianos-MacBook-Air/CRITICAL/locust.main: Unhandled exception in greenlet: <Greenlet at 0x10c1ce3e0: <bound method StatsCSVFileWriter.stats_writer of <locust.stats.StatsCSVFileWriter object at 0x10c11aa50>>>
+Traceback (most recent call last):
+  File "src/gevent/greenlet.py", line 912, in gevent._gevent_cgreenlet.Greenlet.run
+  File "/opt/homebrew/Cellar/locust/2.46.7/libexec/lib/python3.14/site-packages/locust/stats.py", line 1170, in stats_writer
+    self.requests_csv_filehandle.seek(requests_csv_data_start)
+    ^^^^^^^
+ValueError: I/O operation on closed file.

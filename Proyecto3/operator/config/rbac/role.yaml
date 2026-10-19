@@ -80,4 +80,24 @@ rules:
   - update
   - watch
 
+##
+## Rules for mumnk8s.so1.usac/v1alpha1, Kind: GrafanaInstance
+##
+- apiGroups:
+  - mumnk8s.so1.usac
+  resources:
+  - grafanainstances
+  - grafanainstances/status
+  - grafanainstances/finalizers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+# Los recursos que crea su chart (Deployment, Service, ConfigMap, Secret) ya
+# están cubiertos por las reglas de ValkeyInstance de arriba.
+
 # +kubebuilder:scaffold:rules

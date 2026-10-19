@@ -1,0 +1,5 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+POST,/dapr-202101149,"ConnectionResetError(54, 'Connection reset by peer')",1,2026-10-19T02:48:10Z,2026-10-19T02:48:10Z
+POST,/dapr-202101149,HTTPError('404 Client Error: Not Found for url: /dapr-202101149'),9,2026-10-19T02:46:36Z,2026-10-19T02:46:53Z
+POST,/dapr-202101149,HTTPError('502 Server Error: Bad Gateway for url: /dapr-202101149'),250,2026-10-19T02:46:45Z,2026-10-19T02:48:26Z
+POST,/dapr-202101149,HTTPError('503 Server Error: Service Unavailable for url: /dapr-202101149'),1562,2026-10-19T02:47:10Z,2026-10-19T02:47:14Z

@@ -1,0 +1,14 @@
+# Valores del chart oficial dapr/dapr 1.18.7 (plano de control de Dapr).
+# Las imágenes salen de Zot (scripts/11_mirror_externas.sh): el chart arma cada una como
+# <global.registry>/<nombre>:<global.tag>, p. ej. .../mumnk8s/dapr/daprd:1.18.7.
+global:
+  registry: 34-45-250-177.sslip.io/mumnk8s/dapr
+  tag: "1.18.7"
+  # Solo se usa pub/sub. Actors (placement) y scheduler (3 pods con etcd y un PVC de
+  # 16Gi cada uno) no hacen falta y se apagan para no gastar nodos ni disco.
+  actors:
+    enabled: false
+  scheduler:
+    enabled: false
+  ha:
+    enabled: false

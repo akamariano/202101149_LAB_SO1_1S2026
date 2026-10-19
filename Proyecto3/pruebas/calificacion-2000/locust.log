@@ -1,0 +1,45 @@
+[2026-10-18 21:59:49,084] Marianos-MacBook-Air/INFO/locust.main: Starting Locust 2.46.7
+[2026-10-18 21:59:49,112] Marianos-MacBook-Air/INFO/locust.runners: Marianos-MacBook-Air.local_5c203f27549641a489aa16b83a271dae (index 0) reported as ready. 1 workers connected.
+[2026-10-18 21:59:49,112] Marianos-MacBook-Air/INFO/locust.runners: Marianos-MacBook-Air.local_e5790bd40ece439e83b7ccc44cec3cf2 (index 1) reported as ready. 2 workers connected.
+[2026-10-18 21:59:49,113] Marianos-MacBook-Air/INFO/locust.runners: Marianos-MacBook-Air.local_f0e10a3eb9e64cf8a6b876acdad26766 (index 2) reported as ready. 3 workers connected.
+[2026-10-18 21:59:49,114] Marianos-MacBook-Air/INFO/locust.runners: Marianos-MacBook-Air.local_d730a8fca5524d008c07f3e9c6132b5e (index 3) reported as ready. 4 workers connected.
+[2026-10-18 21:59:50,110] Marianos-MacBook-Air/INFO/locust.main: Run time limit set to 150 seconds
+[2026-10-18 21:59:50,112] Marianos-MacBook-Air/INFO/locust.runners: Sending spawn jobs of 2000 users at 100.00 spawn rate to 4 ready workers
+[2026-10-18 22:00:09,224] Marianos-MacBook-Air/INFO/locust.runners: All users spawned: {"SoldadoReportero": 2000} (2000 total users)
+[2026-10-18 22:02:20,115] Marianos-MacBook-Air/INFO/locust.main: --run-time limit reached, shutting down
+[2026-10-18 22:02:20,116] Marianos-MacBook-Air/INFO/locust.runners: Got quit message from master, shutting down...
+[2026-10-18 22:02:20,116] Marianos-MacBook-Air/INFO/locust.runners: Got quit message from master, shutting down...
+[2026-10-18 22:02:20,116] Marianos-MacBook-Air/INFO/locust.runners: Got quit message from master, shutting down...
+[2026-10-18 22:02:20,117] Marianos-MacBook-Air/INFO/locust.runners: Got quit message from master, shutting down...
+[2026-10-18 22:02:20,194] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 0)
+[2026-10-18 22:02:20,194] Marianos-MacBook-Air/INFO/locust.runners: Worker 'Marianos-MacBook-Air.local_e5790bd40ece439e83b7ccc44cec3cf2' (index 1) quit. 0 workers ready.
+[2026-10-18 22:02:20,210] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 0)
+[2026-10-18 22:02:20,210] Marianos-MacBook-Air/INFO/locust.runners: Worker 'Marianos-MacBook-Air.local_d730a8fca5524d008c07f3e9c6132b5e' (index 3) quit. 0 workers ready.
+[2026-10-18 22:02:20,210] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 0)
+[2026-10-18 22:02:20,210] Marianos-MacBook-Air/INFO/locust.runners: Worker 'Marianos-MacBook-Air.local_f0e10a3eb9e64cf8a6b876acdad26766' (index 2) quit. 0 workers ready.
+[2026-10-18 22:02:20,211] Marianos-MacBook-Air/INFO/locust.runners: Worker 'Marianos-MacBook-Air.local_5c203f27549641a489aa16b83a271dae' (index 0) quit. 0 workers ready.
+[2026-10-18 22:02:20,211] Marianos-MacBook-Air/INFO/locust.runners: The last worker quit, stopping test.
+[2026-10-18 22:02:20,211] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 0)
+[2026-10-18 22:02:21,128] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 1)
+Type     Name                                                                          # reqs      # fails |    Avg     Min     Max    Med |   req/s  failures/s
+--------|----------------------------------------------------------------------------|-------|-------------|-------|-------|-------|-------|--------|-----------
+POST     /grpc-202101149                                                                26812     6(0.02%) |   6396     101  123124   1100 |  178.64        0.04
+--------|----------------------------------------------------------------------------|-------|-------------|-------|-------|-------|-------|--------|-----------
+         Aggregated                                                                     26812     6(0.02%) |   6396     101  123124   1100 |  178.64        0.04
+
+Response time percentiles (approximated)
+Type     Name                                                                                  50%    66%    75%    80%    90%    95%    98%    99%  99.9% 99.99%   100% # reqs
+--------|--------------------------------------------------------------------------------|--------|------|------|------|------|------|------|------|------|------|------|------
+POST     /grpc-202101149                                                                      1100   3400   5900   7800  18000  33000  48000  66000  96000 118000 123000  26812
+--------|--------------------------------------------------------------------------------|--------|------|------|------|------|------|------|------|------|------|------|------
+         Aggregated                                                                           1100   3400   5900   7800  18000  33000  48000  66000  96000 118000 123000  26812
+
+Error report
+# occurrences      Error                                                                                               
+------------------|---------------------------------------------------------------------------------------------------------------------------------------------
+3                  POST /grpc-202101149: HTTPError('408 Client Error: Request Timeout for url: /grpc-202101149')       
+1                  POST /grpc-202101149: ConnectTimeoutError(<HTTPConnection(host='34.54.242.227', port=80) at 0x10838a580>, 'Connection to 34.54.242.227 timed out. (connect timeout=None)')
+1                  POST /grpc-202101149: ConnectTimeoutError(<HTTPConnection(host='34.54.242.227', port=80) at 0x1085289e0>, 'Connection to 34.54.242.227 timed out. (connect timeout=None)')
+1                  POST /grpc-202101149: ConnectTimeoutError(<HTTPConnection(host='34.54.242.227', port=80) at 0x1086c6360>, 'Connection to 34.54.242.227 timed out. (connect timeout=None)')
+------------------|---------------------------------------------------------------------------------------------------------------------------------------------
+

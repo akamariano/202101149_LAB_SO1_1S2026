@@ -1,2 +1,5 @@
 .secrets/
 *PLAN.md
+locust/.artifact/
+__pycache__/
+.calificacion/

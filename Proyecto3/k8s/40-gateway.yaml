@@ -30,6 +30,12 @@ spec:
       backendRefs:
         - name: rust-api
           port: 8080
+    # Flujo alternativo (extra): rust-api lo reenvía a go-api, que continúa con Dapr pub/sub.
+    - matches:
+        - path: { type: PathPrefix, value: /dapr-202101149 }
+      backendRefs:
+        - name: rust-api
+          port: 8080
 ---
 # El balanceador de GKE revisa la salud de los pods por su cuenta (no usa las probes).
 # Por defecto pide GET / y rust-api responde 404 en esa ruta, así que se le indica /health.

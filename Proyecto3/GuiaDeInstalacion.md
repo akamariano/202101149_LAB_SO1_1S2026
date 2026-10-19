@@ -116,10 +116,20 @@ protoc -I ../proto --go_out=proto --go_opt=paths=source_relative \
        --go-grpc_out=proto --go-grpc_opt=paths=source_relative ../proto/warreport.proto
 ```
 
-Imágenes de terceros (RabbitMQ): se copian de Docker Hub a Zot una sola vez.
+Tags vigentes: `rust-api:v3`, `api-rest:v2`, `grpc-client:v3`, `grpc-server:v4`, `rabbit-writer:v1`, `consumer:v3` y `falco-bridge:v1` (los que usan los manifiestos de `k8s/`). El operador va en `v5` (`TAG=v5 ./operator/build_deploy.sh`), que trae el dashboard con los paneles de Falco.
 
 ```bash
-./scripts/11_mirror_externas.sh
+TAG=v3 ./scripts/10_build_push.sh rust-api grpc-client
+TAG=v2 ./scripts/10_build_push.sh api-rest
+TAG=v4 ./scripts/10_build_push.sh grpc-server
+TAG=v1 ./scripts/10_build_push.sh falco-bridge
+```
+
+Imágenes y artifacts de terceros (RabbitMQ, Valkey, Grafana, Falco y Dapr): se copian a Zot una sola vez. Las imágenes se copian con `skopeo` desde la VM de Zot; las reglas y el plugin de Falco, que son artifacts OCI, con `oras cp` desde la Mac.
+
+```bash
+./scripts/11_mirror_externas.sh          # todo
+./scripts/11_mirror_externas.sh falco    # solo lo que contenga "falco"
 ```
 
 ## 6. Desplegar los componentes en GKE
@@ -154,6 +164,12 @@ kubectl -n mumnk8s logs deploy/go-writer -c grpc-server
 
 ```bash
 ./scripts/20_gateway_ip.sh     # espera la IP (3 a 8 min) y hace un POST de prueba
+```
+
+Locust lee países, rangos y rutas del OCI Artifact publicado en Zot (sección 9). Bájalo primero:
+
+```bash
+./scripts/50_oci_artifact.sh pull
 ```
 
 Locust con interfaz web (http://localhost:8089):
@@ -192,6 +208,108 @@ kubectl -n mumnk8s exec valkey-0 -- valkey-cli zrevrange top:planes 0 4 withscor
 
 Si cambias el chart, vuelve a ejecutar `TAG=v2 ./operator/build_deploy.sh`: los charts van dentro de la imagen del operador.
 
+### Grafana
+
+Todo en un paso: `./scripts/41_grafana_deploy.sh` hace lo de abajo y abre el dashboard. Si Grafana ya está desplegado, `./scripts/41_grafana_deploy.sh ver` solo lo abre.
+
+Paso a paso:
+
+```bash
+./scripts/11_mirror_externas.sh        # también copia grafana/grafana:12.4.13 a Zot
+TAG=v5 ./operator/build_deploy.sh      # operador con el kind GrafanaInstance (v5: con paneles de Falco)
+./scripts/40_grafana_secret.sh         # Secret grafana-admin (clave en .secrets/grafana.env)
+kubectl apply -f k8s/80-grafana.yaml   # CR GrafanaInstance
+kubectl -n mumnk8s get grafanainstance,deploy,svc,cm -l app.kubernetes.io/name=grafana
+```
+
+Abrir el dashboard:
+
+```bash
+kubectl -n mumnk8s port-forward svc/grafana 3300:80
+# http://localhost:3300  usuario y clave en .secrets/grafana.env
+```
+
+Si el pod se queda en `Init:0/1`, el initContainer no pudo descargar el plugin. Revisa `kubectl -n mumnk8s logs deploy/grafana -c install-plugins`.
+
+## 9. OCI Artifact (configuración de Locust)
+
+```bash
+./scripts/50_oci_artifact.sh push   # sube locust/war-config.json a Zot como mumnk8s/locust-config:v1
+./scripts/50_oci_artifact.sh ver    # manifiesto (artifactType propio, capa application/json)
+./scripts/50_oci_artifact.sh pull   # lo baja a locust/.artifact/war-config.json
+```
+
+Para cambiar los rangos o los países, edita `locust/war-config.json` y publica otra versión (`TAG=v2 ./scripts/50_oci_artifact.sh push`).
+
+## 10. Pruebas de réplicas
+
+```bash
+./scripts/60_pruebas_replicas.sh                    # w1-v1 w2-v1 w1-v2 w2-v2, 150 usuarios, 2 min
+PREFIJO=alta- USUARIOS=600 TASA=50 PROCESOS=4 GO_API=2 ./scripts/60_pruebas_replicas.sh w1-v1 w2-v1
+FLUJO=dapr PREFIJO=dapr- ./scripts/60_pruebas_replicas.sh w1-v1 w2-v1
+```
+
+`wX-vY` significa X réplicas de `go-writer` e Y réplicas de Valkey. Los resultados quedan en `pruebas/<escenario>/`: `locust_stats.csv`, `cola.csv` (colas de RabbitMQ cada 5 s), `cpu.txt` (`kubectl top` cada 5 s) y `resumen.txt`. Al terminar, el script deja 1 `go-writer`, 1 Valkey y el HPA en 1-3.
+
+## 11. Dapr (extra, `/dapr-202101149`)
+
+```bash
+./scripts/80_dapr.sh instalar   # chart dapr/dapr 1.18.7 desde Zot, Component pubsub-rabbitmq, sidecars
+./scripts/80_dapr.sh probar     # POST a /dapr-202101149 y logs de cada salto
+./scripts/80_dapr.sh estado     # pods 3/3, Component y colas
+FLUJO=dapr locust -f locust/locustfile.py --host http://<IP_GATEWAY>
+```
+
+`go-api` y `go-writer` deben mostrar `3/3` (el tercer contenedor es `daprd`). En RabbitMQ aparece la cola `go-writer-war_reports_dapr`. Después de agregar la ruta, el balanceador puede responder `404` durante 1-3 minutos mientras propaga el cambio.
+
+## 12. Falco (extra)
+
+```bash
+./scripts/70_falco.sh instalar   # chart falcosecurity/falco 9.2.0 desde Zot + regla k8s/falco/reglas-mumnk8s.yaml
+./scripts/70_falco.sh probar     # kubectl exec ... cat /etc/shadow y muestra la alerta
+./scripts/70_falco.sh logs       # solo las alertas [MUMNK8s]
+```
+
+Los 3 pods del DaemonSet `falco` deben estar `1/1`. Si un pod no arranca, revisa el initContainer que baja las reglas: `kubectl -n falco logs <pod> -c falcoctl-artifact-install`.
+
+## 13. Día de la calificación
+
+La guía del auxiliar ([pruebas/Official/](pruebas/Official/)) pide todo desplegado **antes** del turno y no permite compilar ni desplegar durante él. [scripts/90_calificacion.sh](scripts/90_calificacion.sh) separa las dos partes:
+
+```bash
+./scripts/90_calificacion.sh            # todo de una vez: levantar + las 4 vueltas + extra
+./scripts/90_calificacion.sh levantar   # o solo levantar, antes del turno (5-15 min)
+```
+
+Sin parámetros, el script levanta todo, abre las pestañas y ejecuta las vueltas seguidas, con una pausa (Enter) entre vuelta y vuelta. `PAUSA=comando` pausa después de cada comando y `PAUSA=0` no pausa nunca. La vuelta 2 genera tráfico con **200 usuarios** (~450 req/s); se cambia con `USUARIOS=…`.
+
+`levantar` hace lo siguiente:
+1. Enciende la VM de Zot y los nodos.
+2. Aplica los manifiestos (idempotente) e instala Dapr y Falco si faltan.
+3. Espera a que todos los pods estén listos. Si `go-api` o `go-writer` arrancaron antes que el injector de Dapr y quedaron sin sidecar, los recrea.
+4. Baja el OCI Artifact.
+5. Prueba `/grpc-202101149` y `/dapr-202101149`. Con nodos recién encendidos, el balanceador tarda unos minutos en registrar los pods; el script espera hasta 15 min y muestra el avance.
+6. Deja Locust (interfaz web, puerto 8089) y el port-forward de Grafana (puerto 3300) en segundo plano.
+7. Abre las 3 pestañas que pide la guía: Locust, el catálogo de Zot y el dashboard.
+
+Durante el turno, una vuelta por comando. Cada uno muestra el comando antes de ejecutarlo y espera Enter:
+
+| Comando | Vuelta de la guía | Qué muestra |
+|---|---|---|
+| `./scripts/90_calificacion.sh vuelta1` | 1. GCP, Zot y Gateway | `kubectl get nodes -o wide`, `kubectl get gateway,httproute`, las rutas, la VM de Zot, el catálogo, el certificado y que todas las imágenes salen de Zot |
+| `./scripts/90_calificacion.sh vuelta2` | 2. Locust, Rust, gRPC y HPA | Inicia la carga en la interfaz de Locust, `kubectl get hpa,deployments`, logs de cada salto (`rust-api` → `grpc-client` → `grpc-server` → `rabbit-writer`) y el HPA escalando de 1 a 3 |
+| `./scripts/90_calificacion.sh vuelta3` | 3. RabbitMQ, consumer y operador | `kubectl get crd`, los CRs, los pods, `valkey-cli DBSIZE`, lo que creó el operador, las colas y los datos en Valkey |
+| `./scripts/90_calificacion.sh vuelta4` | 4. Grafana, Falco y manual | Dashboard, `cat /etc/shadow` en un pod y la alerta de Falco del último minuto |
+| `./scripts/90_calificacion.sh extra` | Puntos extra | Flujo Dapr: plano de control, Component, pods `3/3` y un reporte por `/dapr-202101149` |
+
+Los nombres de los CRDs (`valkeyinstances`, `grafanainstances`), de los CRs y del pod de Valkey no están fijos en el script: los lee del clúster filtrando por el grupo `mumnk8s.so1.usac`. El pod primario es `<nombre del CR>-0` porque el operador usa el nombre del CR como nombre del release de Helm. La guía usa `app=api-rust` como ejemplo; en este proyecto la etiqueta es **`app=rust-api`**:
+
+```bash
+kubectl logs -l app=rust-api -n mumnk8s --tail=10
+```
+
+Ensayo completo sin pausas: `PAUSA=0 ./scripts/90_calificacion.sh todo`. Al terminar: `./scripts/90_calificacion.sh detener && ./scripts/apagar.sh`.
+
 ---
 
 ## Apagar y encender (control de costos)
@@ -213,3 +331,6 @@ La IP estática, los discos y las imágenes de Zot se conservan.
 | `kubectl`: `gke-gcloud-auth-plugin not found` en una terminal nueva | Esa terminal no cargó el PATH de gcloud. Ejecutar `export PATH="/opt/homebrew/share/google-cloud-sdk/bin:$PATH"` |
 | El Gateway responde `502` | El health check del balanceador falla. Revisar que exista la `HealthCheckPolicy` y que `/health` responda |
 | Pod en GKE con `exec format error` | La imagen se construyó para arm64. Reconstruir con `--platform linux/amd64` |
+| Locust: `No existe .../locust/.artifact/war-config.json` | Falta bajar el OCI Artifact: `./scripts/50_oci_artifact.sh pull` |
+| `10_build_push.sh` responde `Abre Docker Desktop primero.` | Abrir Docker Desktop y esperar a que `docker info` responda |
+| `go-api` o `go-writer` en `2/2` con Dapr instalado | Los pods se crearon antes que Dapr. `kubectl -n mumnk8s rollout restart deploy/go-api deploy/go-writer` |

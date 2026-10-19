@@ -1,0 +1,11 @@
+NAME                         READY   STATUS    RESTARTS        AGE   IP          NODE                                    NOMINATED NODE   READINESS GATES
+consumer-9f7bf5f7b-xtw62     1/1     Running   3 (5m11s ago)   3d    10.64.2.4   gke-so1-p3-default-pool-fca8685a-db50   <none>           <none>
+go-api-7679486fd-b86mj       2/2     Running   0               3d    10.64.0.5   gke-so1-p3-default-pool-fca8685a-0x7k   <none>           <none>
+go-writer-54f649bbf9-7krkr   2/2     Running   0               3d    10.64.1.5   gke-so1-p3-default-pool-fca8685a-hdh3   <none>           <none>
+go-writer-54f649bbf9-mjjbd   2/2     Running   0               39s   10.64.0.7   gke-so1-p3-default-pool-fca8685a-0x7k   <none>           <none>
+grafana-7db77c664d-bhvns     1/1     Running   0               3d    10.64.2.7   gke-so1-p3-default-pool-fca8685a-db50   <none>           <none>
+rabbitmq-0                   1/1     Running   0               3d    10.64.1.8   gke-so1-p3-default-pool-fca8685a-hdh3   <none>           <none>
+rust-api-9c654d56b-7rlwr     1/1     Running   0               3d    10.64.2.6   gke-so1-p3-default-pool-fca8685a-db50   <none>           1/1
+rust-api-9c654d56b-cfcg4     1/1     Running   0               3d    10.64.1.6   gke-so1-p3-default-pool-fca8685a-hdh3   <none>           1/1
+rust-api-9c654d56b-w2msk     1/1     Running   0               3d    10.64.0.6   gke-so1-p3-default-pool-fca8685a-0x7k   <none>           1/1
+valkey-0                     1/1     Running   0               3d    10.64.1.7   gke-so1-p3-default-pool-fca8685a-hdh3   <none>           <none>

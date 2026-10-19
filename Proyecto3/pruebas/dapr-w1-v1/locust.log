@@ -1,0 +1,31 @@
+[2026-10-18 20:40:05,491] Marianos-MacBook-Air/INFO/locust.main: Starting Locust 2.46.7
+[2026-10-18 20:40:05,506] Marianos-MacBook-Air/INFO/locust.runners: Marianos-MacBook-Air.local_8d1c08cfb9224f379964f9e946c5f285 (index 0) reported as ready. 1 workers connected.
+[2026-10-18 20:40:06,509] Marianos-MacBook-Air/INFO/locust.main: Run time limit set to 120 seconds
+[2026-10-18 20:40:06,510] Marianos-MacBook-Air/INFO/locust.runners: Sending spawn jobs of 150 users at 25.00 spawn rate to 1 ready workers
+[2026-10-18 20:40:11,572] Marianos-MacBook-Air/INFO/locust.runners: All users spawned: {"SoldadoReportero": 150} (150 total users)
+[2026-10-18 20:42:06,513] Marianos-MacBook-Air/INFO/locust.main: --run-time limit reached, shutting down
+[2026-10-18 20:42:06,515] Marianos-MacBook-Air/INFO/locust.runners: Got quit message from master, shutting down...
+[2026-10-18 20:42:06,567] Marianos-MacBook-Air/INFO/locust.runners: Worker 'Marianos-MacBook-Air.local_8d1c08cfb9224f379964f9e946c5f285' (index 0) quit. 0 workers ready.
+[2026-10-18 20:42:06,567] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 0)
+[2026-10-18 20:42:06,567] Marianos-MacBook-Air/INFO/locust.runners: The last worker quit, stopping test.
+[2026-10-18 20:42:07,525] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 1)
+Type     Name                                                                          # reqs      # fails |    Avg     Min     Max    Med |   req/s  failures/s
+--------|----------------------------------------------------------------------------|-------|-------------|-------|-------|-------|-------|--------|-----------
+POST     /dapr-202101149                                                                34465   294(0.85%) |    210      57    4177    200 |  287.09        2.45
+--------|----------------------------------------------------------------------------|-------|-------------|-------|-------|-------|-------|--------|-----------
+         Aggregated                                                                     34465   294(0.85%) |    210      57    4177    200 |  287.09        2.45
+
+Response time percentiles (approximated)
+Type     Name                                                                                  50%    66%    75%    80%    90%    95%    98%    99%  99.9% 99.99%   100% # reqs
+--------|--------------------------------------------------------------------------------|--------|------|------|------|------|------|------|------|------|------|------|------
+POST     /dapr-202101149                                                                       200    240    270    290    340    380    450    540   1600   3300   4200  34465
+--------|--------------------------------------------------------------------------------|--------|------|------|------|------|------|------|------|------|------|------|------
+         Aggregated                                                                            200    240    270    290    340    380    450    540   1600   3300   4200  34465
+
+Error report
+# occurrences      Error                                                                                               
+------------------|---------------------------------------------------------------------------------------------------------------------------------------------
+293                POST /dapr-202101149: HTTPError('404 Client Error: Not Found for url: /dapr-202101149')             
+1                  POST /dapr-202101149: ConnectionResetError(54, 'Connection reset by peer')                          
+------------------|---------------------------------------------------------------------------------------------------------------------------------------------
+

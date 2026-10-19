@@ -1,0 +1,10 @@
+22:00:03  go-api-54=165m/37Mi go-writer=210m/38Mi rabbitmq-=382m/88Mi rust-api-=69m/110Mi 
+22:00:41 cpu: 3 go-api-54=165m/37Mi go-writer=210m/38Mi rabbitmq-=382m/88Mi rust-api-=69m/110Mi 
+22:01:06 cpu: 3 go-api-54=302m/38Mi go-writer=280m/38Mi rabbitmq-=507m/88Mi rust-api-=38m/51Mi rust-api-=31m/30Mi rust-api-=76m/171Mi 
+22:01:22 cpu: 3 go-api-54=104m/38Mi go-writer=88m/38Mi rabbitmq-=260m/88Mi rust-api-=13m/68Mi rust-api-=21m/64Mi rust-api-=21m/204Mi 
+22:01:45 cpu: 3 go-api-54=104m/38Mi go-writer=88m/38Mi rabbitmq-=260m/88Mi rust-api-=13m/68Mi rust-api-=21m/64Mi rust-api-=21m/204Mi 
+22:02:06 cpu: 3 
+22:02:33 cpu: 3 go-api-54=306m/38Mi go-writer=285m/38Mi rabbitmq-=497m/210Mi rust-api-=41m/187Mi rust-api-=41m/185Mi rust-api-=36m/278Mi 
+22:02:49 cpu: 3 go-api-54=306m/38Mi go-writer=285m/38Mi rabbitmq-=497m/210Mi rust-api-=41m/187Mi rust-api-=41m/185Mi rust-api-=36m/278Mi 
+22:03:05 cpu: 3 go-api-54=118m/38Mi go-writer=64m/38Mi rabbitmq-=230m/88Mi rust-api-=2m/187Mi rust-api-=4m/189Mi rust-api-=8m/282Mi 
+22:03:21 cpu: 3 go-api-54=4m/38Mi go-writer=4m/38Mi rabbitmq-=184m/88Mi rust-api-=1m/187Mi rust-api-=1m/189Mi rust-api-=1m/282Mi 

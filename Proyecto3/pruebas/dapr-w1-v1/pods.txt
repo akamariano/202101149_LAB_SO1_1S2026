@@ -1,0 +1,10 @@
+NAME                        READY   STATUS    RESTARTS      AGE     IP           NODE                                    NOMINATED NODE   READINESS GATES
+consumer-9f7bf5f7b-xtw62    1/1     Running   3 (32m ago)   3d1h    10.64.2.4    gke-so1-p3-default-pool-fca8685a-db50   <none>           <none>
+go-api-8488c5655-rfrjp      3/3     Running   0             10m     10.64.0.12   gke-so1-p3-default-pool-fca8685a-0x7k   <none>           <none>
+go-writer-5dbf6b6b9-psj46   3/3     Running   0             10m     10.64.2.19   gke-so1-p3-default-pool-fca8685a-db50   <none>           <none>
+grafana-7db77c664d-bhvns    1/1     Running   0             3d1h    10.64.2.7    gke-so1-p3-default-pool-fca8685a-db50   <none>           <none>
+rabbitmq-0                  1/1     Running   0             3d1h    10.64.1.8    gke-so1-p3-default-pool-fca8685a-hdh3   <none>           <none>
+rust-api-6498d88447-552vb   1/1     Running   0             8m44s   10.64.1.9    gke-so1-p3-default-pool-fca8685a-hdh3   <none>           1/1
+rust-api-6498d88447-sbvd4   1/1     Running   0             10m     10.64.2.18   gke-so1-p3-default-pool-fca8685a-db50   <none>           1/1
+rust-api-6498d88447-xqm2l   1/1     Running   0             8m44s   10.64.0.13   gke-so1-p3-default-pool-fca8685a-0x7k   <none>           1/1
+valkey-0                    1/1     Running   0             3d1h    10.64.1.7    gke-so1-p3-default-pool-fca8685a-hdh3   <none>           <none>

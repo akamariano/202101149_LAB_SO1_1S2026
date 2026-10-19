@@ -1,0 +1,47 @@
+# Provisioning: Grafana lee estos archivos al arrancar y crea el datasource y el dashboard
+# sin pasos manuales en la UI. Si se borran desde la UI, vuelven al reiniciar el pod.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "grafana.name" . }}-provisioning
+  labels: {{- include "grafana.labels" . | nindent 4 }}
+data:
+  datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Valkey
+        type: {{ .Values.redisPlugin.id }}
+        uid: valkey
+        access: proxy
+        url: redis://{{ .Values.valkey.address }}
+        isDefault: true
+        editable: false
+        jsonData:
+          client: standalone
+          poolSize: 5
+          timeout: 10
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: mumnk8s
+        folder: M.U.M.N.K8s
+        type: file
+        disableDeletion: true
+        allowUiUpdates: false
+        options:
+          path: /dashboards
+---
+# El JSON del dashboard vive en files/ para editarlo como JSON puro. No se procesa con
+# tpl porque Grafana usa la misma sintaxis de llaves dobles; solo se reemplazan marcadores.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "grafana.name" . }}-dashboards
+  labels: {{- include "grafana.labels" . | nindent 4 }}
+data:
+  mumnk8s.json: |
+{{ .Files.Get "files/dashboard.json"
+   | replace "__PAIS__" .Values.dashboard.country
+   | replace "__CARNET__" (toString .Values.dashboard.carnet)
+   | replace "__REFRESH__" .Values.dashboard.refresh
+   | indent 4 }}

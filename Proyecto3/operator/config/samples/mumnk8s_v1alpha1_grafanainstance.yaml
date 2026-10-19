@@ -1,0 +1,13 @@
+apiVersion: mumnk8s.so1.usac/v1alpha1
+kind: GrafanaInstance
+metadata:
+  name: grafana
+  namespace: mumnk8s
+spec:
+  valkey:
+    address: valkey:6379
+  adminSecret: grafana-admin
+  dashboard:
+    country: GTM
+    carnet: "202101149"
+    refresh: 5s

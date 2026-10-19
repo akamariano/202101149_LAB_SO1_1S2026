@@ -1,0 +1,42 @@
+[2026-10-18 20:53:30,417] Marianos-MacBook-Air/INFO/locust.main: Starting Locust 2.46.7
+[2026-10-18 20:53:30,442] Marianos-MacBook-Air/INFO/locust.runners: Marianos-MacBook-Air.local_2684cd30962e41278a8f8b4c50081910 (index 0) reported as ready. 1 workers connected.
+[2026-10-18 20:53:30,442] Marianos-MacBook-Air/INFO/locust.runners: Marianos-MacBook-Air.local_b295872da8fa4e4d84483415dc4ace58 (index 1) reported as ready. 2 workers connected.
+[2026-10-18 20:53:30,442] Marianos-MacBook-Air/INFO/locust.runners: Marianos-MacBook-Air.local_b078e8eb2a33482eaf469aa89896fb39 (index 2) reported as ready. 3 workers connected.
+[2026-10-18 20:53:30,443] Marianos-MacBook-Air/INFO/locust.runners: Marianos-MacBook-Air.local_f9071ee6e42f49559c6df02d18ac44b6 (index 3) reported as ready. 4 workers connected.
+[2026-10-18 20:53:31,444] Marianos-MacBook-Air/INFO/locust.main: Run time limit set to 120 seconds
+[2026-10-18 20:53:31,446] Marianos-MacBook-Air/INFO/locust.runners: Sending spawn jobs of 600 users at 50.00 spawn rate to 4 ready workers
+[2026-10-18 20:53:42,526] Marianos-MacBook-Air/INFO/locust.runners: All users spawned: {"SoldadoReportero": 600} (600 total users)
+[2026-10-18 20:55:31,444] Marianos-MacBook-Air/INFO/locust.main: --run-time limit reached, shutting down
+[2026-10-18 20:55:31,444] Marianos-MacBook-Air/INFO/locust.runners: Got quit message from master, shutting down...
+[2026-10-18 20:55:31,444] Marianos-MacBook-Air/INFO/locust.runners: Got quit message from master, shutting down...
+[2026-10-18 20:55:31,444] Marianos-MacBook-Air/INFO/locust.runners: Got quit message from master, shutting down...
+[2026-10-18 20:55:31,445] Marianos-MacBook-Air/INFO/locust.runners: Got quit message from master, shutting down...
+[2026-10-18 20:55:31,475] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 0)
+[2026-10-18 20:55:31,475] Marianos-MacBook-Air/INFO/locust.runners: Worker 'Marianos-MacBook-Air.local_2684cd30962e41278a8f8b4c50081910' (index 0) quit. 0 workers ready.
+[2026-10-18 20:55:31,476] Marianos-MacBook-Air/INFO/locust.runners: Worker 'Marianos-MacBook-Air.local_b295872da8fa4e4d84483415dc4ace58' (index 1) quit. 0 workers ready.
+[2026-10-18 20:55:31,476] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 0)
+[2026-10-18 20:55:31,477] Marianos-MacBook-Air/INFO/locust.runners: Worker 'Marianos-MacBook-Air.local_f9071ee6e42f49559c6df02d18ac44b6' (index 3) quit. 0 workers ready.
+[2026-10-18 20:55:31,477] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 0)
+[2026-10-18 20:55:31,477] Marianos-MacBook-Air/INFO/locust.runners: Worker 'Marianos-MacBook-Air.local_b078e8eb2a33482eaf469aa89896fb39' (index 2) quit. 0 workers ready.
+[2026-10-18 20:55:31,477] Marianos-MacBook-Air/INFO/locust.runners: The last worker quit, stopping test.
+[2026-10-18 20:55:31,477] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 0)
+[2026-10-18 20:55:32,448] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 1)
+Type     Name                                                                          # reqs      # fails |    Avg     Min     Max    Med |   req/s  failures/s
+--------|----------------------------------------------------------------------------|-------|-------------|-------|-------|-------|-------|--------|-----------
+POST     /dapr-202101149                                                                41463  1524(3.68%) |   1346      99   10282   1300 |  345.45       12.70
+--------|----------------------------------------------------------------------------|-------|-------------|-------|-------|-------|-------|--------|-----------
+         Aggregated                                                                     41463  1524(3.68%) |   1346      99   10282   1300 |  345.45       12.70
+
+Response time percentiles (approximated)
+Type     Name                                                                                  50%    66%    75%    80%    90%    95%    98%    99%  99.9% 99.99%   100% # reqs
+--------|--------------------------------------------------------------------------------|--------|------|------|------|------|------|------|------|------|------|------|------
+POST     /dapr-202101149                                                                      1300   1600   1800   1900   2100   2200   2300   2500   5500   8000  10000  41463
+--------|--------------------------------------------------------------------------------|--------|------|------|------|------|------|------|------|------|------|------|------
+         Aggregated                                                                           1300   1600   1800   1900   2100   2200   2300   2500   5500   8000  10000  41463
+
+Error report
+# occurrences      Error                                                                                               
+------------------|---------------------------------------------------------------------------------------------------------------------------------------------
+1524               POST /dapr-202101149: HTTPError('502 Server Error: Bad Gateway for url: /dapr-202101149')           
+------------------|---------------------------------------------------------------------------------------------------------------------------------------------
+

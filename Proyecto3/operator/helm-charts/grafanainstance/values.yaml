@@ -1,0 +1,32 @@
+# Valores por defecto. Cada campo de spec en el CR GrafanaInstance sobrescribe uno de estos.
+
+image:
+  repository: 34-45-250-177.sslip.io/mumnk8s/grafana
+  tag: 12.4.13
+
+# Plugin para leer Valkey directamente (habla el protocolo de Redis).
+# Un initContainer lo descarga al volumen de plugins antes de arrancar Grafana.
+redisPlugin:
+  id: redis-datasource
+  version: 2.2.0   # última publicada en grafana.com (la 2.2.1 de GitHub no está en el catálogo)
+
+# Service de escritura de Valkey que crea el CR ValkeyInstance "valkey"
+valkey:
+  address: valkey:6379
+
+# Secret con las llaves admin-user y admin-password (scripts/40_grafana_secret.sh)
+adminSecret: grafana-admin
+
+# Datos fijos del dashboard
+dashboard:
+  country: GTM
+  carnet: "202101149"
+  refresh: 5s
+
+service:
+  type: ClusterIP
+  port: 80
+
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits: { cpu: 500m, memory: 384Mi }

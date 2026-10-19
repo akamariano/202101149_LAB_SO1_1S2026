@@ -3,4 +3,5 @@
 # It should be run by config/default
 resources:
 - bases/mumnk8s.so1.usac_valkeyinstances.yaml
+- bases/mumnk8s.so1.usac_grafanainstances.yaml
 # +kubebuilder:scaffold:crdkustomizeresource

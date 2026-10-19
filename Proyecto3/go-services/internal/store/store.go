@@ -4,7 +4,9 @@
 //
 //	max:planes, min:planes, max:ships, min:ships   string  máximos y mínimos generales
 //	freq:planes, freq:ships                        zset    valor -> veces que apareció
-//	mode:planes, mode:ships                        string  valor más frecuente (moda)
+//	mode:planes, mode:ships                        string  valor más frecuente (moda general)
+//	freq:planes:<PAIS>, freq:ships:<PAIS>          zset    igual, solo con reportes de ese país
+//	mode:planes:<PAIS>, mode:ships:<PAIS>          string  moda de ese país
 //	top:planes, top:ships                          zset    país -> suma acumulada
 //	reports:<PAIS>, reports:total                  string  contadores de reportes
 //	ts:<PAIS>                                      stream  serie temporal (planes, ships)
@@ -34,15 +36,18 @@ local function extremos(campo, v)
   if not min or v < min then redis.call('SET', 'min:' .. campo, v) end
 end
 
-local function moda(campo, v)
-  local n = tonumber(redis.call('ZINCRBY', 'freq:' .. campo, 1, v))
-  local actual = redis.call('GET', 'mode:' .. campo)
-  local nActual = actual and tonumber(redis.call('ZSCORE', 'freq:' .. campo, actual)) or 0
-  if n > nActual then redis.call('SET', 'mode:' .. campo, v) end
+-- sufijo '' = moda general; ':' .. country = moda solo de ese país
+local function moda(campo, v, sufijo)
+  local freq, mode = 'freq:' .. campo .. sufijo, 'mode:' .. campo .. sufijo
+  local n = tonumber(redis.call('ZINCRBY', freq, 1, v))
+  local actual = redis.call('GET', mode)
+  local nActual = actual and tonumber(redis.call('ZSCORE', freq, actual)) or 0
+  if n > nActual then redis.call('SET', mode, v) end
 end
 
 extremos('planes', planes); extremos('ships', ships)
-moda('planes', planes);     moda('ships', ships)
+moda('planes', planes, ''); moda('ships', ships, '')
+moda('planes', planes, ':' .. country); moda('ships', ships, ':' .. country)
 redis.call('ZINCRBY', 'top:planes', planes, country)
 redis.call('ZINCRBY', 'top:ships', ships, country)
 redis.call('INCR', 'reports:' .. country)

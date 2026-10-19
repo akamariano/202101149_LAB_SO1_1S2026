@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: consumer
-          image: 34-45-250-177.sslip.io/mumnk8s/consumer:v2
+          image: 34-45-250-177.sslip.io/mumnk8s/consumer:v3
           env:
             - name: WORKERS
               value: "8"

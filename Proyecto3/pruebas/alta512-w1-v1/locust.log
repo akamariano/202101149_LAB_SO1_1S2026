@@ -1,0 +1,36 @@
+[2026-10-18 21:03:19,430] Marianos-MacBook-Air/INFO/locust.main: Starting Locust 2.46.7
+[2026-10-18 21:03:19,447] Marianos-MacBook-Air/INFO/locust.runners: Marianos-MacBook-Air.local_9559793c06164804838900c88529e76f (index 0) reported as ready. 1 workers connected.
+[2026-10-18 21:03:19,448] Marianos-MacBook-Air/INFO/locust.runners: Marianos-MacBook-Air.local_5954c20fb162487e8d8444f7f37df687 (index 1) reported as ready. 2 workers connected.
+[2026-10-18 21:03:19,448] Marianos-MacBook-Air/INFO/locust.runners: Marianos-MacBook-Air.local_d1089adaa90446ae9817f04085096e22 (index 2) reported as ready. 3 workers connected.
+[2026-10-18 21:03:19,448] Marianos-MacBook-Air/INFO/locust.runners: Marianos-MacBook-Air.local_b33666d820a3440fbe36c14c2c971e41 (index 3) reported as ready. 4 workers connected.
+[2026-10-18 21:03:20,450] Marianos-MacBook-Air/INFO/locust.main: Run time limit set to 120 seconds
+[2026-10-18 21:03:20,452] Marianos-MacBook-Air/INFO/locust.runners: Sending spawn jobs of 600 users at 50.00 spawn rate to 4 ready workers
+[2026-10-18 21:03:31,510] Marianos-MacBook-Air/INFO/locust.runners: All users spawned: {"SoldadoReportero": 600} (600 total users)
+[2026-10-18 21:05:20,455] Marianos-MacBook-Air/INFO/locust.main: --run-time limit reached, shutting down
+[2026-10-18 21:05:20,455] Marianos-MacBook-Air/INFO/locust.runners: Got quit message from master, shutting down...
+[2026-10-18 21:05:20,455] Marianos-MacBook-Air/INFO/locust.runners: Got quit message from master, shutting down...
+[2026-10-18 21:05:20,455] Marianos-MacBook-Air/INFO/locust.runners: Got quit message from master, shutting down...
+[2026-10-18 21:05:20,456] Marianos-MacBook-Air/INFO/locust.runners: Got quit message from master, shutting down...
+[2026-10-18 21:05:20,491] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 0)
+[2026-10-18 21:05:20,491] Marianos-MacBook-Air/INFO/locust.runners: Worker 'Marianos-MacBook-Air.local_d1089adaa90446ae9817f04085096e22' (index 2) quit. 0 workers ready.
+[2026-10-18 21:05:20,491] Marianos-MacBook-Air/INFO/locust.runners: Worker 'Marianos-MacBook-Air.local_9559793c06164804838900c88529e76f' (index 0) quit. 0 workers ready.
+[2026-10-18 21:05:20,491] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 0)
+[2026-10-18 21:05:20,492] Marianos-MacBook-Air/INFO/locust.runners: Worker 'Marianos-MacBook-Air.local_5954c20fb162487e8d8444f7f37df687' (index 1) quit. 0 workers ready.
+[2026-10-18 21:05:20,492] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 0)
+[2026-10-18 21:05:20,492] Marianos-MacBook-Air/INFO/locust.runners: Worker 'Marianos-MacBook-Air.local_b33666d820a3440fbe36c14c2c971e41' (index 3) quit. 0 workers ready.
+[2026-10-18 21:05:20,492] Marianos-MacBook-Air/INFO/locust.runners: The last worker quit, stopping test.
+[2026-10-18 21:05:20,492] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 0)
+[2026-10-18 21:05:21,463] Marianos-MacBook-Air/INFO/locust.main: Shutting down (exit code 0)
+Type     Name                                                                          # reqs      # fails |    Avg     Min     Max    Med |   req/s  failures/s
+--------|----------------------------------------------------------------------------|-------|-------------|-------|-------|-------|-------|--------|-----------
+POST     /grpc-202101149                                                               154608     0(0.00%) |    144      93    5310    130 | 1288.03        0.00
+--------|----------------------------------------------------------------------------|-------|-------------|-------|-------|-------|-------|--------|-----------
+         Aggregated                                                                    154608     0(0.00%) |    144      93    5310    130 | 1288.03        0.00
+
+Response time percentiles (approximated)
+Type     Name                                                                                  50%    66%    75%    80%    90%    95%    98%    99%  99.9% 99.99%   100% # reqs
+--------|--------------------------------------------------------------------------------|--------|------|------|------|------|------|------|------|------|------|------|------
+POST     /grpc-202101149                                                                       130    140    150    160    180    200    250    320   1400   3400   5300 154608
+--------|--------------------------------------------------------------------------------|--------|------|------|------|------|------|------|------|------|------|------|------
+         Aggregated                                                                            130    140    150    160    180    200    250    320   1400   3400   5300 154608
+

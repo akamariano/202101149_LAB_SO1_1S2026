@@ -1,0 +1,44 @@
+# Component de Dapr: le dice a los sidecars qué broker hay detrás del pub/sub
+# "pubsub-rabbitmq". Las aplicaciones solo conocen ese nombre y el tópico; cambiar
+# RabbitMQ por otro broker sería cambiar este archivo, no el código.
+#
+# Con este Component, Dapr crea en el mismo RabbitMQ del proyecto:
+#   exchange war_reports_dapr (fanout)  ->  cola go-writer-war_reports_dapr
+# Coexiste con el exchange/cola war_reports del flujo principal.
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: pubsub-rabbitmq
+  namespace: mumnk8s
+spec:
+  type: pubsub.rabbitmq
+  version: v1
+  metadata:
+    - name: protocol
+      value: amqp
+    - name: hostname
+      value: rabbitmq.mumnk8s.svc.cluster.local
+    # Mismo usuario que el writer y el consumer (scripts/30_rabbitmq_secret.sh)
+    - name: username
+      secretKeyRef: { name: rabbitmq-cred, key: username }
+    - name: password
+      secretKeyRef: { name: rabbitmq-cred, key: password }
+    # Mensajes persistentes y cola durable, igual que el flujo principal
+    - name: durable
+      value: "true"
+    - name: deliveryMode
+      value: "2"
+    - name: deletedWhenUnused
+      value: "false"
+    # El sidecar responde a PublishEvent solo cuando RabbitMQ confirmó el mensaje
+    - name: publisherConfirm
+      value: "true"
+    # Si el suscriptor devuelve RETRY, el mensaje vuelve a la cola
+    - name: requeueInFailure
+      value: "true"
+    - name: prefetchCount
+      value: "50"
+# Solo estas aplicaciones (dapr.io/app-id) pueden usar el Component
+scopes:
+  - go-api
+  - go-writer

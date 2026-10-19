@@ -1,6 +1,8 @@
 # Deployment 2 de Go: un pod con 2 contenedores que comparten la red (localhost).
 #   grpc-server   : gRPC :50051, recibe del Deployment 1 y reenvía a localhost:50052
 #   rabbit-writer : gRPC solo en localhost:50052, publica cada reporte en RabbitMQ
+#   daprd         : sidecar de Dapr; lee la cola del tópico war_reports_dapr y entrega cada
+#                   evento al grpc-server por gRPC en localhost:50060 (app-port)
 # Las réplicas (1 o 2) se cambian aquí para el análisis de rendimiento.
 apiVersion: apps/v1
 kind: Deployment
@@ -15,12 +17,25 @@ spec:
   template:
     metadata:
       labels: { app: go-writer }
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: go-writer
+        dapr.io/app-port: "50060"
+        dapr.io/app-protocol: grpc
+        dapr.io/sidecar-cpu-request: 50m
+        dapr.io/sidecar-memory-request: 64Mi
+        dapr.io/sidecar-cpu-limit: 300m
+        dapr.io/sidecar-memory-limit: 128Mi
     spec:
       containers:
         - name: grpc-server
-          image: 34-45-250-177.sslip.io/mumnk8s/grpc-server:v3
+          image: 34-45-250-177.sslip.io/mumnk8s/grpc-server:v4
           ports:
             - containerPort: 50051
+          env:
+            # Suscriptor de Dapr (callbacks del sidecar)
+            - name: DAPR_APP_ADDR
+              value: localhost:50060
           resources:
             requests: { cpu: 100m, memory: 32Mi }
             limits: { cpu: 500m, memory: 128Mi }

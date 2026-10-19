@@ -1,0 +1,41 @@
+# Regla propia de Falco: detecta cuando un proceso dentro de los pods de la API en Rust
+# o de los servicios en Go intenta abrir un archivo de credenciales del sistema
+# (/etc/shadow, /etc/gshadow) o el directorio de prueba /app/secretos.
+#
+# Falco ve la syscall open/openat/openat2 en el kernel (driver modern_ebpf), así que
+# detecta el intento aunque el archivo no se pueda leer: los contenedores corren como
+# el usuario "app" (uid 10001) y el kernel responde EACCES, que aparece en "resultado".
+
+- list: mumnk8s_contenedores_app
+  items: [rust-api, api-rest, grpc-client, grpc-server, rabbit-writer, consumer]
+
+- list: mumnk8s_archivos_sensibles
+  items: [/etc/shadow, /etc/gshadow]
+
+- macro: mumnk8s_pod_app
+  condition: k8s.ns.name = mumnk8s and container.name in (mumnk8s_contenedores_app)
+
+- macro: mumnk8s_ruta_sensible
+  condition: >
+    fd.name in (mumnk8s_archivos_sensibles)
+    or fd.name = /app/secretos
+    or fd.name startswith /app/secretos/
+
+- rule: Lectura de archivo sensible en pods de MUMNK8s
+  desc: >
+    Un proceso de un pod de rust-api, go-api, go-writer o consumer intentó abrir
+    /etc/shadow, /etc/gshadow o /app/secretos. Ningún servicio del proyecto lo
+    necesita, así que indica que alguien entró al contenedor (kubectl exec) o que
+    la aplicación fue comprometida.
+  condition: >
+    evt.type in (open, openat, openat2)
+    and mumnk8s_ruta_sensible
+    and mumnk8s_pod_app
+  output: >
+    [MUMNK8s] Intento de lectura de archivo sensible
+    (archivo=%fd.name resultado=%evt.res usuario=%user.name uid=%user.uid
+    comando=%proc.cmdline padre=%proc.pname terminal=%proc.tty
+    pod=%k8s.pod.name ns=%k8s.ns.name contenedor=%container.name
+    imagen=%container.image.repository:%container.image.tag)
+  priority: CRITICAL
+  tags: [mumnk8s, filesystem, mitre_credential_access]

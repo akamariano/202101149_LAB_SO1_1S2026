@@ -1,0 +1,6 @@
+apiVersion: v2
+name: grafanainstance
+description: Grafana (Deployment + Service + datasource y dashboard provisionados) administrado por el operador mumnk8s
+type: application
+version: 0.1.0
+appVersion: "12.4"

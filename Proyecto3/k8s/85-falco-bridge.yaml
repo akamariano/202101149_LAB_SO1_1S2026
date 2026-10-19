@@ -1,0 +1,43 @@
+# Puente Falco -> Valkey -> Grafana. Falco (namespace falco) envía cada alerta por HTTP
+# (http_output en k8s/falco/values.yaml) y falco-bridge la guarda en el stream
+# falco:alertas de Valkey, que el dashboard muestra como tabla.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: falco-bridge
+  namespace: mumnk8s
+  labels: { app: falco-bridge }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: falco-bridge }
+  template:
+    metadata:
+      labels: { app: falco-bridge }
+    spec:
+      containers:
+        - name: falco-bridge
+          image: 34-45-250-177.sslip.io/mumnk8s/falco-bridge:v1
+          ports:
+            - containerPort: 2801
+          env:
+            # Service de escritura creado por el operador (CR ValkeyInstance "valkey")
+            - name: VALKEY_ADDR
+              value: valkey:6379
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 100m, memory: 64Mi }
+          readinessProbe:
+            httpGet: { path: /health, port: 2801 }
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: falco-bridge
+  namespace: mumnk8s
+spec:
+  selector: { app: falco-bridge }
+  ports:
+    - port: 2801
+      targetPort: 2801

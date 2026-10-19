@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "grafana.name" . }}
+  labels: {{- include "grafana.labels" . | nindent 4 }}
+spec:
+  # Una réplica: Grafana guarda sesiones en su SQLite local; todo lo demás es provisioning
+  replicas: 1
+  selector:
+    matchLabels: {{- include "grafana.selector" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "grafana.selector" . | nindent 8 }}
+      annotations:
+        # Si cambia el datasource o el dashboard, cambia el hash y el pod se recrea
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      securityContext:
+        fsGroup: 472   # usuario grafana de la imagen oficial: puede escribir en los volúmenes
+      initContainers:
+        # La imagen oficial no trae el plugin de Redis. Se instala con el propio CLI de
+        # Grafana en el volumen compartido, así no hace falta construir una imagen propia.
+        - name: install-plugins
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command: ["grafana", "cli", "--pluginsDir", "/var/lib/grafana/plugins",
+                    "plugins", "install", "{{ .Values.redisPlugin.id }}", "{{ .Values.redisPlugin.version }}"]
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/grafana }
+      containers:
+        - name: grafana
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - { name: http, containerPort: 3000 }
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom: { secretKeyRef: { name: {{ .Values.adminSecret }}, key: admin-user } }
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.adminSecret }}, key: admin-password } }
+            # El dashboard del proyecto es la página de inicio
+            - name: GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH
+              value: /dashboards/mumnk8s.json
+            # Sin llamadas a grafana.com en cada arranque
+            - name: GF_ANALYTICS_REPORTING_ENABLED
+              value: "false"
+            - name: GF_ANALYTICS_CHECK_FOR_UPDATES
+              value: "false"
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/grafana }
+            - { name: provisioning, mountPath: /etc/grafana/provisioning/datasources/datasource.yaml, subPath: datasource.yaml }
+            - { name: provisioning, mountPath: /etc/grafana/provisioning/dashboards/dashboards.yaml, subPath: dashboards.yaml }
+            - { name: dashboards, mountPath: /dashboards }
+          readinessProbe:
+            httpGet: { path: /api/health, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /api/health, port: http }
+            initialDelaySeconds: 30
+            periodSeconds: 15
+      volumes:
+        # emptyDir: la configuración entera sale de los ConfigMaps, no hay nada que persistir
+        - name: data
+          emptyDir: {}
+        - name: provisioning
+          configMap:
+            name: {{ include "grafana.name" . }}-provisioning
+        - name: dashboards
+          configMap:
+            name: {{ include "grafana.name" . }}-dashboards
