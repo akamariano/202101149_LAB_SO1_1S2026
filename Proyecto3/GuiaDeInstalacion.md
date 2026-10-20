@@ -310,6 +310,25 @@ kubectl logs -l app=rust-api -n mumnk8s --tail=10
 
 Ensayo completo sin pausas: `PAUSA=0 ./scripts/90_calificacion.sh todo`. Al terminar: `./scripts/90_calificacion.sh detener && ./scripts/apagar.sh`.
 
+Cada vuelta sigue el mismo orden que el PDF:
+1. Imprime lo que pide la guía: tiempo, puntos, pestañas del navegador, comandos y verificaciones.
+2. Ejecuta los comandos de la guía rotulados `[Guía, comando n de N]`, cada uno con una línea `↳ Se ve:` que dice qué mirar en la salida. Después vienen los rotulados `[Evidencia adicional]`.
+3. Cierra con un resumen ✔/✘ de las verificaciones de esa vuelta, comprobadas contra el clúster (por ejemplo: HPA 1-3 al 30 %, cola `war_reports` con consumers, `DBSIZE > 0`, alertas de Falco registradas).
+
+Las vueltas están en [scripts/lib_calificacion.sh](scripts/lib_calificacion.sh) y las usan dos scripts:
+
+| Script | Qué hace |
+|---|---|
+| [scripts/90_calificacion.sh](scripts/90_calificacion.sh) | Levanta el sistema y hace las acciones de la demo: inicia la carga en Locust, `cat /etc/shadow` para Falco y un reporte por `/dapr-202101149` |
+| [scripts/91_mostrar.sh](scripts/91_mostrar.sh) | **Solo lee.** No enciende GCP, no abre Locust ni el port-forward y no inicia la carga. Muestra lo que pide la guía y el estado actual. Si el clúster está apagado, solo imprime la guía |
+
+```bash
+./scripts/91_mostrar.sh            # preparación (kubectl y las 3 pestañas) + 4 vueltas + extra
+./scripts/91_mostrar.sh guia       # solo el texto de la guía y los puntos (no consulta el clúster)
+./scripts/91_mostrar.sh vuelta3    # una vuelta
+SIMULAR=1 ./scripts/91_mostrar.sh vuelta4   # además genera la alerta de Falco
+```
+
 ---
 
 ## Apagar y encender (control de costos)

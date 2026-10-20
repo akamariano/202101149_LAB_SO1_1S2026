@@ -188,6 +188,10 @@ Catálogo de Zot con las imágenes del proyecto. Se ven `mumnk8s/grpc-server` (v
 
 ![Catálogo de Zot con las imágenes del proyecto](<Images/ZOT Registries.png>)
 
+Página principal de Zot con el proyecto completo desplegado (20/10/2026), tal como se muestra en la pestaña 2 de la calificación. En **Most popular images**, las más descargadas son `mumnk8s/falco/container` (0.7.4) y `mumnk8s/falco/falco-rules` (5.2.0), con 49 descargas cada una. Son los artifacts OCI del plugin y de las reglas de Falco, así que no muestran arquitectura. El initContainer `falcoctl` los baja cada vez que arranca un pod de Falco: hay uno por nodo, y los nodos son nuevos cada vez que se enciende el clúster. Les sigue `mumnk8s/rust-api` (v3, `linux/amd64`, 27 descargas), que cada nodo descarga la primera vez que le toca un pod de `rust-api`: al encender el clúster los nodos son nuevos, y el HPA reparte réplicas entre ellos. En **Recently updated images** aparecen la imagen del operador `mumnk8s/mumnk8s-operator` (v5) y `mumnk8s/falco-bridge` (v1), el servicio que pasa las alertas de Falco a Valkey (sección 15.2).
+
+![Página principal de Zot con las imágenes y artifacts del proyecto](<Images/Registros ZOT Updated.png>)
+
 
 ## 6. Flujo completo de datos
 
@@ -544,6 +548,8 @@ Ensayo de la calificación ([scripts/90_calificacion.sh](scripts/90_calificacion
 - **Vuelta 2:** con 200 usuarios de Locust, el HPA está en **3 réplicas con 57 % de CPU** (objetivo: 30 %). El log de `rust-api` muestra el resumen cada 10 s: ~1 600 reportes reenviados a `go-api` por intervalo, sin rechazados ni errores.
 
 ![Vueltas 1 y 2: imágenes desde Zot, HPA escalado y logs de rust-api](Images/PRUEBA.png)
+
+Las vueltas de la calificación están en [scripts/lib_calificacion.sh](scripts/lib_calificacion.sh) y siguen el orden de la guía oficial. Cada una imprime lo que pide la guía, ejecuta sus comandos rotulados `[Guía, comando n de N]` y termina con un resumen ✔/✘ de las verificaciones, comprobadas contra el clúster. [scripts/90_calificacion.sh](scripts/90_calificacion.sh) levanta el sistema y hace las acciones de la demo. [scripts/91_mostrar.sh](scripts/91_mostrar.sh) solo consulta el estado: no enciende nada ni inicia la carga (Guía de instalación, sección 13).
 
 ## 12. OCI Artifact
 
@@ -920,6 +926,10 @@ Con `kubectl exec -it`, `terminal` sería distinto de 0, lo que delata una shell
 | `falco:total:mumnk8s` | String | Contador de las alertas de la regla propia (tag `mumnk8s`) |
 
 Se usa un stream porque el plugin `redis-datasource` lo lee con `XREVRANGE` como una tabla: una fila por alerta y una columna por campo. Con una lista no se puede, porque el plugin no soporta `LRANGE`. Con un hash quedaría una sola fila con una columna por alerta. Por eso no se usa falcosidekick, que solo escribe en Redis como lista o como hash.
+
+Alerta de la regla propia en el dashboard (20/10/2026, 13:07:18), generada con `kubectl exec` y `cat /etc/shadow` en un pod de `rust-api`. Abajo, los contadores **Alertas Falco: regla propia** (`falco:total:mumnk8s`) y **Alertas Falco: total** (`falco:total`) marcan 1. La tabla **Últimas alertas de Falco** muestra la fila: prioridad `Critical`, regla *Lectura de archivo sensible en pods de MUMNK8s*, el pod `rust-api-867c594d7…`, el contenedor `rust-api` y el comando `cat /etc/shadow`. Arriba se ve el resto del dashboard: el país asignado (GTM), el carnet y la serie temporal de GTM.
+
+![Alerta de Falco en el dashboard de Grafana](<Images/ALERTA FALCO.png>)
 
 ## 16. Problemas encontrados y soluciones
 
