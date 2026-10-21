@@ -9,7 +9,6 @@
 | Ruta principal | `/grpc-202101149` |
 | Ruta alterna (opcional) | `/dapr-202101149` |
 
-> Estado del documento: **en construcción**. Cada sección se completa al cerrar su bloque de trabajo. La guía para levantar el entorno está en [GuiaDeInstalacion.md](GuiaDeInstalacion.md).
 
 ---
 
@@ -480,7 +479,7 @@ El comando agregó el CRD `grafanainstances`, una entrada en `watches.yaml` (`Gr
 |---|---|---|
 | [configmap.yaml](operator/helm-charts/grafanainstance/templates/configmap.yaml) | `grafana-provisioning`, `grafana-dashboards` | El datasource `Valkey` (plugin `redis-datasource` 2.2.0, `redis://valkey:6379`), el proveedor de dashboards y el JSON del dashboard ([files/dashboard.json](operator/helm-charts/grafanainstance/files/dashboard.json)) |
 | [deployment.yaml](operator/helm-charts/grafanainstance/templates/deployment.yaml) | Deployment de 1 réplica | Imagen oficial `grafana/grafana:12.4.13` espejada en Zot. Un **initContainer** instala el plugin con `grafana cli` en el volumen compartido, así no se necesita una imagen propia. Usuario y clave admin desde el Secret `grafana-admin`. La anotación `checksum/config` recrea el pod si cambia el dashboard |
-| [service.yaml](operator/helm-charts/grafanainstance/templates/service.yaml) | Service `grafana` (ClusterIP, puerto 80 → 3000) | Se accede con `kubectl port-forward` |
+| [service.yaml](operator/helm-charts/grafanainstance/templates/service.yaml) | Service `grafana` (ClusterIP, puerto 80 → 3000) | Se publica con la ruta `grafana-route` del Gateway ([k8s/40-gateway.yaml](k8s/40-gateway.yaml)) |
 
 **¿Por qué provisioning y no configurarlo en la UI?** Grafana lee los archivos de `/etc/grafana/provisioning` al arrancar. Así el datasource y el dashboard existen apenas se crea el CR, sin pasos manuales, y el volumen de datos puede ser un `emptyDir`: si el pod muere, el nuevo arranca igual.
 
@@ -629,7 +628,7 @@ Falco usa el mismo mecanismo (sección 15.2): sus reglas y su plugin de contened
 
 ## 13. Dashboard de Grafana
 
-El dashboard lo crea el operador a partir del CR `GrafanaInstance` (sección 10.5): el datasource de Valkey y el JSON del dashboard se provisionan por ConfigMap, sin pasos manuales en la interfaz. Se abre en `http://localhost:3300/d/mumnk8s` con `kubectl -n mumnk8s port-forward svc/grafana 3300:80` (o con [scripts/90_calificacion.sh](scripts/90_calificacion.sh), que deja el port-forward abierto).
+El dashboard lo crea el operador a partir del CR `GrafanaInstance` (sección 10.5): el datasource de Valkey y el JSON del dashboard se provisionan por ConfigMap, sin pasos manuales en la interfaz. Se abre en `http://<IP del Gateway>/d/mumnk8s`: el HTTPRoute `grafana-route` manda `/` al Service `grafana` ([k8s/40-gateway.yaml](k8s/40-gateway.yaml)), y [scripts/90_calificacion.sh](scripts/90_calificacion.sh) abre esa pestaña.
 
 ![Dashboard de Grafana con datos reales](Images/DASHBOARD.png)
 
@@ -950,7 +949,8 @@ Alerta de la regla propia en el dashboard (20/10/2026, 13:07:18), generada con `
 | El chart de Dapr crea 3 pods de *scheduler* con un PVC de 16Gi cada uno | El scheduler (etcd embebido) es para *jobs* y *workflows*, y viene activado por defecto | `global.scheduler.enabled: false` y `global.actors.enabled: false`: solo se usa pub/sub |
 | `daprd`: `Failed to listen ... [::1]:50001: cannot assign requested address` | Los pods de GKE no tienen IPv6 y el sidecar intenta escuchar en las dos familias | Solo es un aviso: el sidecar escucha en `127.0.0.1:50001` y la publicación funciona |
 | Falco no alertaba con `ls /app/secretos` | Si el directorio no existe, `ls` solo llama a `stat` y nunca hace `open`. La regla mira `open/openat` | La prueba usa `cat` sobre `/etc/shadow` y `/etc/gshadow`, que sí abre el archivo |
-| Locust con 2000 usuarios desde la Mac: 178 req/s, p95 de 33 s, `ConnectTimeoutError`, y `kubectl` con `TLS handshake timeout` mientras el clúster estaba casi ocioso | El límite estaba del lado del cliente: 2000 conexiones TCP abiertas a la vez agotan la tabla NAT del router doméstico, que empieza a descartar conexiones nuevas ([pruebas/calificacion-2000/](pruebas/calificacion-2000/)) | Para la calificación se usan 200 usuarios (~450 req/s, 0 fallos, el HPA escala de 1 a 3). Para más usuarios, habría que correr Locust dentro de GCP |
+| Locust con 2000 usuarios desde la Mac: 178 req/s, p95 de 33 s, `ConnectTimeoutError`, y `kubectl` con `TLS handshake timeout` mientras el clúster estaba casi ocioso | El límite estaba del lado del cliente: 2000 conexiones TCP abiertas a la vez agotan la tabla NAT del router doméstico, que empieza a descartar conexiones nuevas ([pruebas/calificacion-2000/](pruebas/calificacion-2000/)) | La guía de calificación pide 1000 usuarios: el script usa 1000 (50 por segundo, 4 procesos). Si la red de casa no da abasto, `ESPERA=1,2` baja las req/s manteniendo los usuarios; para más, habría que correr Locust dentro de GCP |
+| Con 1000 usuarios de Locust, el dashboard de Grafana daba `Failed to fetch` | El `kubectl port-forward` a Grafana es un túnel por el API server de GKE; con la red de casa ocupada por Locust se cayó 12 veces en 10 min (`Error creating error stream: Timeout occurred`, `lost connection to pod`) | Grafana se publica por el mismo Gateway con el HTTPRoute `grafana-route` (`/` → `grafana:80`) y un `HealthCheckPolicy` a `/api/health` |
 | `skopeo copy` no sirve para las reglas y el plugin de Falco | No son imágenes, son artifacts OCI con otros `mediaType` | Se copian con `oras cp` en [scripts/11_mirror_externas.sh](scripts/11_mirror_externas.sh) |
 
 ## 17. Conclusiones

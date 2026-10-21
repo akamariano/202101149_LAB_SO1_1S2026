@@ -14,9 +14,9 @@ NS=mumnk8s
 GRUPO=mumnk8s.so1.usac
 PORT="${PORT:-3300}"
 LOCUST_PORT=8089
-USUARIOS="${USUARIOS:-200}"
-SPAWN="${SPAWN:-20}"           # usuarios nuevos por segundo (200 en 10 s)
-PROCESOS="${PROCESOS:-2}"
+USUARIOS="${USUARIOS:-1000}"   # la guía de calificación pide 1000 usuarios
+SPAWN="${SPAWN:-50}"           # usuarios nuevos por segundo (1000 en 20 s)
+PROCESOS="${PROCESOS:-4}"
 MODO="${MODO:-calificar}"
 SIMULAR="${SIMULAR:-0}"
 PAUSA="${PAUSA:-vuelta}"
@@ -79,7 +79,12 @@ guia() {
 # Verificaciones automáticas: check "descripción" 'condición' (se evalúa en silencio, en una subshell)
 RESUMEN=()
 check() {
-  if ( eval "$2" ) >/dev/null 2>&1; then RESUMEN+=("${V}✔${N} $1"); else RESUMEN+=("${R}✘${N} $1"); fi
+  # Con la carga de Locust activa, una llamada a kubectl puede fallar por timeout: se reintenta
+  local i; for i in 1 2 3; do
+    if ( eval "$2" ) >/dev/null 2>&1; then RESUMEN+=("${V}✔${N} $1"); return; fi
+    sleep 3
+  done
+  RESUMEN+=("${R}✘${N} $1")
 }
 resumen() {
   echo; echo "${B}── Resumen de $1 (verificaciones de la guía, comprobadas en el clúster)${N}"
@@ -88,8 +93,22 @@ resumen() {
 }
 
 # ---------- consultas al clúster ----------
-cluster_ok() { [ "$(kubectl get nodes --request-timeout=10s --no-headers 2>/dev/null | grep -c ' Ready')" -gt 0 ]; }
-gateway_ip() { kubectl -n $NS get gateway mumnk8s-gateway -o jsonpath='{.status.addresses[0].value}' 2>/dev/null; }
+# Con la carga de Locust activa, kubectl puede dar timeout una vez: se reintenta antes de
+# concluir que el clúster está apagado (si no, la vuelta entera se saltaría)
+cluster_ok() {
+  local i; for i in 1 2 3; do
+    [ "$(kubectl get nodes --request-timeout=10s --no-headers 2>/dev/null | grep -c ' Ready')" -gt 0 ] && return 0
+    sleep 3
+  done
+  return 1
+}
+gateway_ip() {
+  local i ip; for i in 1 2 3; do
+    ip=$(kubectl -n $NS get gateway mumnk8s-gateway -o jsonpath='{.status.addresses[0].value}' 2>/dev/null) || true
+    [ -n "$ip" ] && break; sleep 3
+  done
+  echo "$ip"
+}
 reporte()    { printf '{"country":"GTM","warplanes_in_air":%d,"warships_in_water":%d,"timestamp":"%s"}' \
                  $((RANDOM % 51)) $((RANDOM % 31)) "$(date -u +%Y-%m-%dT%H:%M:%SZ)"; }
 post()       { curl -s -o /dev/null -w '%{http_code}' -m 10 -H 'Content-Type: application/json' -d "$(reporte)" "http://$(gateway_ip)$1"; }
@@ -124,7 +143,9 @@ locust_estado() {
   curl -s -m 3 "http://localhost:$LOCUST_PORT/stats/requests" \
     | jq -r '"  Locust: \(.state), \(.user_count) usuarios, \(.total_rps|floor) req/s, fallos \(.fail_ratio*100|floor) %"'
 }
-grafana_vivo() { curl -s -m 3 "http://localhost:$PORT/api/health" 2>/dev/null | grep -q database; }
+# Grafana va por el Gateway (no por port-forward, que se cae con la carga de Locust)
+grafana_url()  { echo "http://$(gateway_ip)"; }
+grafana_vivo() { curl -s -m 15 "$(grafana_url)/api/health" 2>/dev/null | grep -q database; }
 
 # Si el clúster no tiene nodos, la vuelta solo imprime lo que pide la guía
 sin_cluster() {
@@ -202,7 +223,7 @@ EOF
       echo "  Iniciando la carga: $USUARIOS usuarios ($SPAWN por segundo) contra http://$(gateway_ip)"
       curl -s -m 10 -X POST "http://localhost:$LOCUST_PORT/swarm" \
         -d "user_count=$USUARIOS&spawn_rate=$SPAWN&host=http://$(gateway_ip)" | jq -c '{success, message}' || true
-      sleep 20   # los usuarios entran en ~10 s y el HPA mide cada 15 s
+      sleep 30   # los usuarios entran en ~20 s y el HPA mide cada 15 s
     else
       omitida "iniciar la carga en Locust"
     fi
@@ -327,11 +348,11 @@ vuelta4() {
   guia <<EOF
 tiempo|8 min (8 alumnos)
 puntos|Grafana 20 · Falco 15 · Manual y guía de instalación 2 · Dapr extra
-pantalla|Pestaña 3: dashboard de Grafana desplegado por el Operator → http://localhost:$PORT/d/mumnk8s
+pantalla|Pestaña 3: dashboard de Grafana desplegado por el Operator → $(grafana_url)/d/mumnk8s
 verifica|Métricas generales de aviones y barcos: máximo, mínimo y moda
 verifica|Top 5 de países con más aviones y con más barcos
 verifica|País asignado ($PAIS): serie temporal y total de reportes
-verifica|Validación de alertas de Falco
+verifica|Validación de alertas de Falco en consola (en Grafana es un plus)
 verifica|Manual técnico (pruebas de carga, HPA y análisis de réplicas) y guía de instalación
 verifica|Extra: flujo con Dapr (/dapr-$CARNET)
 EOF
@@ -339,9 +360,9 @@ EOF
 
   paso "Pestaña 3: dashboard 'M.U.M.N.K8s Monitoring Dashboard'"
   if grafana_vivo; then
-    ok "Grafana responde en http://localhost:$PORT/d/mumnk8s (refresco cada 5 s)"
+    ok "Grafana responde en $(grafana_url)/d/mumnk8s (refresco cada 5 s)"
   else
-    falla "Grafana no responde en localhost:$PORT (port-forward: ./scripts/90_calificacion.sh levantar)"
+    falla "Grafana no responde en $(grafana_url) (ruta grafana-route del Gateway: kubectl apply -f k8s/40-gateway.yaml)"
   fi
   cat <<EOF
   Dónde está cada verificación en el dashboard:
@@ -349,7 +370,7 @@ EOF
     • Moda             → Moda de Aviones/Barcos (general) y del país asignado ($PAIS)
     • Top 5            → Top 5 Países: Aviones en Aire / Barcos en Mar
     • País asignado    → País Asignado ($PAIS), Reportes Recibidos ($PAIS), Evolución Temporal - $PAIS
-    • Falco            → abajo: Alertas Falco (regla propia y total) y Últimas alertas de Falco
+    • Falco (plus)     → abajo: Alertas Falco (regla propia y total) y Últimas alertas de Falco
 EOF
   evidencia "Grafana es un Custom Resource del operador"
   cmd kubectl get "$(crd_plural Grafana)" -n $NS
@@ -366,14 +387,25 @@ EOF
     evidencia "Simulación de la amenaza: leer /etc/shadow dentro de un pod de la API Rust"
     cmd kubectl exec "$p" -n $NS -- cat /etc/shadow
     se_ve "Permission denied: el contenedor corre como el usuario app, pero el intento ya es una syscall openat"
-    sleep 3
+    # Con la carga de Locust, el exec puede no llegar al pod (timeout): se reintenta hasta ver
+    # el "Permission denied" y luego se espera a que la alerta aparezca en los logs de Falco
+    local i
+    for i in 1 2 3; do
+      DESDE=$DESDE_FALCO ./scripts/70_falco.sh logs 2>/dev/null | grep -q "pod=$p" && break
+      kubectl exec "$p" -n $NS -- cat /etc/shadow 2>&1 | grep -q "Permission denied" && break
+      sleep 3
+    done
+    for i in $(seq 1 10); do
+      DESDE=$DESDE_FALCO ./scripts/70_falco.sh logs 2>/dev/null | grep -q "pod=$p" && break
+      sleep 3
+    done
   else
     omitida "kubectl exec $p -- cat /etc/shadow"
   fi
-  evidencia "La alerta en los logs de Falco (todos los nodos, últimos $DESDE_FALCO)"
+  evidencia "La alerta en consola: logs de Falco (todos los nodos, últimos $DESDE_FALCO), lo que pide la guía"
   cmd "DESDE=$DESDE_FALCO ./scripts/70_falco.sh logs"
   se_ve "Critical [MUMNK8s] Intento de lectura de archivo sensible (archivo=/etc/shadow … padre=containerd-shim … pod=$p)"
-  evidencia "La misma alerta en Grafana: Falco (http_output) → falco-bridge → Valkey"
+  evidencia "Plus: la misma alerta en Grafana, Falco (http_output) → falco-bridge → Valkey"
   cmd kubectl logs -l app=falco-bridge -n $NS --tail=3
   cmd "kubectl exec $(pod_valkey) -n $NS -- sh -c 'echo \"falco:total:mumnk8s = \$(valkey-cli get falco:total:mumnk8s)\"; valkey-cli xrevrange falco:alertas + - count 1'"
 
@@ -389,12 +421,13 @@ EOF
 
   check "Grafana accesible (pestaña 3)" 'grafana_vivo'
   check "Grafana desplegado por el operador (GrafanaInstance)" '[ -n "$(cr_nombre Grafana)" ]'
-  check "Máximo, mínimo y moda de aviones y barcos en Valkey" 'for k in max:planes min:planes mode:planes max:ships min:ships mode:ships; do [ -n "$(vk GET $k)" ] || exit 1; done'
+  check "Máximo, mínimo y moda de aviones y barcos en Valkey" '[ "$(vk MGET max:planes min:planes mode:planes max:ships min:ships mode:ships | grep -c .)" -eq 6 ]'
   check "Top 5 de países (aviones y barcos)" '[ "$(vk ZCARD top:planes)" -ge 5 ] && [ "$(vk ZCARD top:ships)" -ge 5 ]'
   check "País asignado $PAIS: serie temporal y total de reportes" '[ "$(vk XLEN ts:$PAIS)" -gt 0 ] && [ "$(vk GET reports:$PAIS)" -gt 0 ]'
   check "Falco: un pod listo por nodo" '[ "$(kubectl get ds -n falco -l app.kubernetes.io/name=falco -o jsonpath="{.items[0].status.numberReady}")" = "$(kubectl get nodes --no-headers | wc -l | tr -d " ")" ]'
   check "Falco: regla propia cargada" 'kubectl get cm -n falco -o yaml | grep -q "MUMNK8s"'
-  check "Falco: alertas de la regla propia registradas" '[ "$(vk GET falco:total:mumnk8s)" -gt 0 ]'
+  check "Falco: alerta de la regla propia en consola (últimos 30 min)" 'DESDE=30m ./scripts/70_falco.sh logs | grep -q "MUMNK8s"'
+  check "Plus: alertas de Falco registradas para Grafana" '[ "$(vk GET falco:total:mumnk8s)" -gt 0 ]'
   check "Manual técnico y guía de instalación en Markdown" '[ -s README.md ] && [ -s GuiaDeInstalacion.md ]'
   resumen "la vuelta 4"
 }

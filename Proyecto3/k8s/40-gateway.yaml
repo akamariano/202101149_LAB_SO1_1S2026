@@ -55,3 +55,40 @@ spec:
     group: ""
     kind: Service
     name: rust-api
+---
+# Grafana por el mismo balanceador (http://<IP del Gateway>/d/mumnk8s). Con 1000 usuarios de
+# Locust desde la Mac, el kubectl port-forward (un túnel por el API server) se caía con
+# "Timeout occurred" y el dashboard mostraba "Failed to fetch". La ruta "/" es la de prefijo
+# más corto: /grpc-202101149 y /dapr-202101149 siguen yendo a rust-api.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: grafana-route
+  namespace: mumnk8s
+spec:
+  parentRefs:
+    - name: mumnk8s-gateway
+  rules:
+    - matches:
+        - path: { type: PathPrefix, value: / }
+      backendRefs:
+        - name: grafana
+          port: 80
+---
+# GET / de Grafana responde 302 hacia /login: el balanceador lo tomaría como no sano.
+apiVersion: networking.gke.io/v1
+kind: HealthCheckPolicy
+metadata:
+  name: grafana-hc
+  namespace: mumnk8s
+spec:
+  default:
+    config:
+      type: HTTP
+      httpHealthCheck:
+        port: 3000
+        requestPath: /api/health
+  targetRef:
+    group: ""
+    kind: Service
+    name: grafana

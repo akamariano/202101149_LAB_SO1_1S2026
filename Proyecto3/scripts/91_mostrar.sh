@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Muestra, vuelta por vuelta, lo que la guía de calificación (pruebas/Official/Guía Proyecto 3 .pdf)
-# pide ver. NO levanta nada: no enciende GCP, no aplica manifiestos, no abre Locust ni el
-# port-forward y no inicia la carga. Solo imprime y consulta. Si el clúster está apagado, imprime
+# pide ver. NO levanta nada: no enciende GCP, no aplica manifiestos, no abre Locust
+# y no inicia la carga. Solo imprime y consulta. Si el clúster está apagado, imprime
 # lo que pide la guía para cada vuelta y avisa.
 #
 #   ./scripts/91_mostrar.sh            # preparación + las 4 vueltas + extra
@@ -37,7 +37,7 @@ tiempo|antes de que entre el grupo
 puntos|requisito: sin sistema desplegado no se califica
 pantalla|Pestaña 1: Locust → http://localhost:$LOCUST_PORT
 pantalla|Pestaña 2: catálogo de Zot → https://$ZOT_DOMAIN/home
-pantalla|Pestaña 3: dashboard de Grafana → http://localhost:$PORT/d/mumnk8s
+pantalla|Pestaña 3: dashboard de Grafana → $(grafana_url)/d/mumnk8s
 verifica|Terminal conectada a GCP con kubectl apuntando al clúster de GKE
 verifica|Todo desplegado antes del turno: no se compila, despliega ni levanta nada durante él
 EOF
@@ -47,7 +47,7 @@ EOF
   check "Clúster con nodos Ready" 'cluster_ok'
   check "Pestaña 1: Locust responde en localhost:$LOCUST_PORT" 'locust_vivo'
   check "Pestaña 2: Zot responde por HTTPS" 'curl -s -m 10 -o /dev/null -w "%{http_code}" https://$ZOT_DOMAIN/v2/ | grep -qE "200|401"'
-  check "Pestaña 3: Grafana responde en localhost:$PORT" 'grafana_vivo'
+  check "Pestaña 3: Grafana responde por el Gateway" 'grafana_vivo'
   check "Gateway con IP pública asignada" '[ -n "$(gateway_ip)" ]'
   resumen "la preparación"
   echo "  ${D}Lo que falte se levanta con ./scripts/90_calificacion.sh levantar${N}"

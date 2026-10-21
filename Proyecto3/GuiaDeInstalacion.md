@@ -225,8 +225,9 @@ kubectl -n mumnk8s get grafanainstance,deploy,svc,cm -l app.kubernetes.io/name=g
 Abrir el dashboard:
 
 ```bash
-kubectl -n mumnk8s port-forward svc/grafana 3300:80
-# http://localhost:3300  usuario y clave en .secrets/grafana.env
+# Por el Gateway (ruta grafana-route de k8s/40-gateway.yaml), usuario y clave en .secrets/grafana.env:
+# http://<IP del Gateway>/d/mumnk8s
+# Sin Gateway: kubectl -n mumnk8s port-forward svc/grafana 3300:80  ->  http://localhost:3300
 ```
 
 Si el pod se queda en `Init:0/1`, el initContainer no pudo descargar el plugin. Revisa `kubectl -n mumnk8s logs deploy/grafana -c install-plugins`.
@@ -281,7 +282,7 @@ La guía del auxiliar ([pruebas/Official/](pruebas/Official/)) pide todo despleg
 ./scripts/90_calificacion.sh levantar   # o solo levantar, antes del turno (5-15 min)
 ```
 
-Sin parámetros, el script levanta todo, abre las pestañas y ejecuta las vueltas seguidas, con una pausa (Enter) entre vuelta y vuelta. `PAUSA=comando` pausa después de cada comando y `PAUSA=0` no pausa nunca. La vuelta 2 genera tráfico con **200 usuarios** (~450 req/s); se cambia con `USUARIOS=…`.
+Sin parámetros, el script levanta todo, abre las pestañas y ejecuta las vueltas seguidas, con una pausa (Enter) entre vuelta y vuelta. `PAUSA=comando` pausa después de cada comando y `PAUSA=0` no pausa nunca. La vuelta 2 genera tráfico con **1000 usuarios** (50 por segundo, 4 procesos de Locust), que es lo que pide la guía de calificación; se cambia con `USUARIOS=…`. Si la red de casa da `ConnectTimeoutError`, `ESPERA=1,2` reduce las req/s sin bajar los usuarios.
 
 `levantar` hace lo siguiente:
 1. Enciende la VM de Zot y los nodos.
@@ -289,7 +290,7 @@ Sin parámetros, el script levanta todo, abre las pestañas y ejecuta las vuelta
 3. Espera a que todos los pods estén listos. Si `go-api` o `go-writer` arrancaron antes que el injector de Dapr y quedaron sin sidecar, los recrea.
 4. Baja el OCI Artifact.
 5. Prueba `/grpc-202101149` y `/dapr-202101149`. Con nodos recién encendidos, el balanceador tarda unos minutos en registrar los pods; el script espera hasta 15 min y muestra el avance.
-6. Deja Locust (interfaz web, puerto 8089) y el port-forward de Grafana (puerto 3300) en segundo plano.
+6. Deja Locust (interfaz web, puerto 8089) en segundo plano y espera a que Grafana responda por el Gateway (`http://<IP del Gateway>/d/mumnk8s`). Antes era un port-forward, pero con 1000 usuarios se caía y el dashboard mostraba `Failed to fetch`.
 7. Abre las 3 pestañas que pide la guía: Locust, el catálogo de Zot y el dashboard.
 
 Durante el turno, una vuelta por comando. Cada uno muestra el comando antes de ejecutarlo y espera Enter:
@@ -299,7 +300,7 @@ Durante el turno, una vuelta por comando. Cada uno muestra el comando antes de e
 | `./scripts/90_calificacion.sh vuelta1` | 1. GCP, Zot y Gateway | `kubectl get nodes -o wide`, `kubectl get gateway,httproute`, las rutas, la VM de Zot, el catálogo, el certificado y que todas las imágenes salen de Zot |
 | `./scripts/90_calificacion.sh vuelta2` | 2. Locust, Rust, gRPC y HPA | Inicia la carga en la interfaz de Locust, `kubectl get hpa,deployments`, logs de cada salto (`rust-api` → `grpc-client` → `grpc-server` → `rabbit-writer`) y el HPA escalando de 1 a 3 |
 | `./scripts/90_calificacion.sh vuelta3` | 3. RabbitMQ, consumer y operador | `kubectl get crd`, los CRs, los pods, `valkey-cli DBSIZE`, lo que creó el operador, las colas y los datos en Valkey |
-| `./scripts/90_calificacion.sh vuelta4` | 4. Grafana, Falco y manual | Dashboard, `cat /etc/shadow` en un pod y la alerta de Falco del último minuto |
+| `./scripts/90_calificacion.sh vuelta4` | 4. Grafana, Falco y manual | Dashboard, `cat /etc/shadow` en un pod y la alerta de Falco del último minuto en consola (en Grafana, como plus) |
 | `./scripts/90_calificacion.sh extra` | Puntos extra | Flujo Dapr: plano de control, Component, pods `3/3` y un reporte por `/dapr-202101149` |
 
 Los nombres de los CRDs (`valkeyinstances`, `grafanainstances`), de los CRs y del pod de Valkey no están fijos en el script: los lee del clúster filtrando por el grupo `mumnk8s.so1.usac`. El pod primario es `<nombre del CR>-0` porque el operador usa el nombre del CR como nombre del release de Helm. La guía usa `app=api-rust` como ejemplo; en este proyecto la etiqueta es **`app=rust-api`**:
@@ -308,7 +309,7 @@ Los nombres de los CRDs (`valkeyinstances`, `grafanainstances`), de los CRs y de
 kubectl logs -l app=rust-api -n mumnk8s --tail=10
 ```
 
-Ensayo completo sin pausas: `PAUSA=0 ./scripts/90_calificacion.sh todo`. Al terminar: `./scripts/90_calificacion.sh detener && ./scripts/apagar.sh`.
+Ensayo completo sin pausas: `PAUSA=0 ./scripts/90_calificacion.sh todo`. Al terminar: `./scripts/apagar.sh` (también detiene la carga y cierra Locust).
 
 Cada vuelta sigue el mismo orden que el PDF:
 1. Imprime lo que pide la guía: tiempo, puntos, pestañas del navegador, comandos y verificaciones.
@@ -320,7 +321,7 @@ Las vueltas están en [scripts/lib_calificacion.sh](scripts/lib_calificacion.sh)
 | Script | Qué hace |
 |---|---|
 | [scripts/90_calificacion.sh](scripts/90_calificacion.sh) | Levanta el sistema y hace las acciones de la demo: inicia la carga en Locust, `cat /etc/shadow` para Falco y un reporte por `/dapr-202101149` |
-| [scripts/91_mostrar.sh](scripts/91_mostrar.sh) | **Solo lee.** No enciende GCP, no abre Locust ni el port-forward y no inicia la carga. Muestra lo que pide la guía y el estado actual. Si el clúster está apagado, solo imprime la guía |
+| [scripts/91_mostrar.sh](scripts/91_mostrar.sh) | **Solo lee.** No enciende GCP, no abre Locust y no inicia la carga. Muestra lo que pide la guía y el estado actual. Si el clúster está apagado, solo imprime la guía |
 
 ```bash
 ./scripts/91_mostrar.sh            # preparación (kubectl y las 3 pestañas) + 4 vueltas + extra
@@ -334,7 +335,7 @@ SIMULAR=1 ./scripts/91_mostrar.sh vuelta4   # además genera la alerta de Falco
 ## Apagar y encender (control de costos)
 
 ```bash
-./scripts/apagar.sh     # clúster a 0 nodos y VM de Zot detenida
+./scripts/apagar.sh     # cierra Locust (y su carga), clúster a 0 nodos y VM de Zot detenida
 ./scripts/encender.sh   # vuelve a 3 nodos, enciende la VM y actualiza kubectl
 ```
 

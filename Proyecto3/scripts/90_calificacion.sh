@@ -22,12 +22,13 @@
 #   PAUSA=vuelta  espera Enter entre vueltas (por defecto)
 #   PAUSA=comando espera Enter después de cada comando
 #   PAUSA=0       no espera nunca
-#   USUARIOS=200  usuarios de Locust en la vuelta 2 (~450 req/s: el HPA escala de 1 a 3, 0 fallos)
+#   USUARIOS=1000 usuarios de Locust en la vuelta 2 (lo que pide la guía de calificación)
+#   SPAWN=50      usuarios nuevos por segundo (1000 en 20 s)
 #   ESPERA=a,b    pausa en segundos entre reportes de cada usuario (por defecto la del OCI Artifact)
-#   PROCESOS=2    procesos de Locust
+#   PROCESOS=4    procesos de Locust
 # Con 2000 usuarios desde una red doméstica, el router se queda sin entradas NAT (2000 conexiones
 # abiertas a la vez): hubo timeouts de conexión aunque el clúster estaba ocioso (sección 16).
-#   PORT=3300     puerto local de Grafana
+# Si con 1000 aparecen ConnectTimeoutError, ESPERA=1,2 baja las req/s sin bajar los usuarios.
 #
 # Los nombres de los CRDs, de los CRs y del pod de Valkey NO están fijos: se leen del clúster
 # (grupo mumnk8s.so1.usac), así que el script sigue sirviendo si se renombra el CR o el kind.
@@ -90,6 +91,11 @@ levantar() {
 
   paso "5. Gateway: rutas públicas"
   until [ -n "$(gateway_ip)" ]; do sleep 10; done
+  # Una carga de Locust que quedó corriendo satura la red de casa (NAT) y todo da 000
+  if locust_vivo && curl -s -m 3 "http://localhost:$LOCUST_PORT/stats/requests" | jq -e '.state == "running" or .state == "spawning"' >/dev/null; then
+    curl -s -m 10 "http://localhost:$LOCUST_PORT/stop" >/dev/null
+    ok "se detuvo una carga de Locust que seguía corriendo"; sleep 10
+  fi
   # Con nodos nuevos, el balanceador de Google tarda unos minutos en registrar los pods como
   # backends (NEG): mientras tanto responde timeout (000), 502 o 503. Se espera hasta 15 min.
   for ruta in "/grpc-$CARNET" "/dapr-$CARNET"; do
@@ -112,23 +118,21 @@ levantar() {
     locust_vivo && ok "http://localhost:$LOCUST_PORT (host $(gateway_ip), $USUARIOS usuarios, $PROCESOS procesos)" || falla "Locust no arrancó: $ESTADO/locust.log"
   fi
 
-  paso "7. Port-forward a Grafana (pestaña 3)"
-  if grafana_vivo; then
-    ok "ya responde en http://localhost:$PORT"
-  else
-    # En un bucle: si el pod de Grafana se reinicia, el port-forward se vuelve a abrir solo
-    nohup bash -c "while true; do kubectl -n $NS port-forward svc/grafana $PORT:80; sleep 2; done" \
-      > "$ESTADO/grafana-pf.log" 2>&1 &
-    echo $! > "$ESTADO/grafana-pf.pid"
-    for _ in $(seq 1 20); do grafana_vivo && break; sleep 1; done
-    grafana_vivo && ok "http://localhost:$PORT" || falla "Grafana no responde: $ESTADO/grafana-pf.log"
-  fi
+  paso "7. Grafana por el Gateway (pestaña 3)"
+  # Antes era un kubectl port-forward: con 1000 usuarios se caía (Timeout occurred) y el
+  # dashboard daba "Failed to fetch". La ruta grafana-route tarda unos minutos en propagarse.
+  inicio=$SECONDS
+  until grafana_vivo || [ $((SECONDS - inicio)) -ge 600 ]; do
+    echo "  … $(grafana_url) aún no responde, el balanceador registra la ruta ($((SECONDS - inicio)) s)"
+    sleep 15
+  done
+  grafana_vivo && ok "$(grafana_url)/d/mumnk8s" || falla "Grafana no responde por el Gateway tras 10 min"
 
   paso "8. Pestañas del navegador"
   source "$SECRETS_DIR/grafana.env"
   open "http://localhost:$LOCUST_PORT"                 # 1: Locust
   open "https://$ZOT_DOMAIN/home"                     # 2: catálogo de Zot
-  open "http://localhost:$PORT/d/mumnk8s?refresh=5s"  # 3: dashboard
+  open "$(grafana_url)/d/mumnk8s?refresh=5s"         # 3: dashboard
   ok "Grafana: usuario $GRAFANA_USER / clave $GRAFANA_PASS"
 
   titulo "LISTO: sistema desplegado y pestañas abiertas"
