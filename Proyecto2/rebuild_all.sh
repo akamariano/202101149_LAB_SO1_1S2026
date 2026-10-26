@@ -6,7 +6,7 @@
 
 set -e
 
-PROJECT_ROOT="$HOME/202101149_LAB_SO1_1S2026/Proyecto2"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KERNEL_DIR="$PROJECT_ROOT/kernel-module/src"
 DAEMON_DIR="$PROJECT_ROOT/daemon-go"
 MODULE_NAME="continfo"

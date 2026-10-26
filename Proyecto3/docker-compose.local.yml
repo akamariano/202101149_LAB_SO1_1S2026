@@ -1,0 +1,160 @@
+# Prueba local del Proyecto 3 sin GCP: el mismo flujo que en GKE, pero en Docker Compose.
+#   Locust -> API Rust -> api-rest (Go) -> grpc-client -> gRPC -> grpc-server
+#          -> rabbit-writer -> RabbitMQ -> consumer -> Valkey -> Grafana
+#
+# Lo que solo existe en el clúster (Gateway API, HPA, Operator, Zot, Dapr y Falco) no
+# está aquí; ver GuiaDeInstalacion.md para el despliegue completo en GKE.
+#
+# Uso (desde Proyecto3/):
+#   docker compose -f docker-compose.local.yml up --build -d
+#   curl -X POST localhost:8080/grpc-202101149 -H 'Content-Type: application/json' \
+#     -d '{"country":"GTM","warplanes_in_air":42,"warships_in_water":14,"timestamp":"2026-03-12T20:15:30Z"}'
+#   docker compose -f docker-compose.local.yml exec valkey valkey-cli GET reports:total
+#   Grafana: http://localhost:3000 (admin / admin), dashboard en la carpeta M.U.M.N.K8s
+#   RabbitMQ: http://localhost:15672 (demo / demo)
+#   docker compose -f docker-compose.local.yml down -v
+
+x-go-service: &go-service
+  build:
+    context: ./go-services
+  restart: on-failure
+
+x-rabbit-url: &rabbit-url amqp://demo:demo@rabbitmq:5672/
+
+services:
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    environment:
+      # guest/guest solo acepta conexiones desde localhost dentro del contenedor
+      RABBITMQ_DEFAULT_USER: demo
+      RABBITMQ_DEFAULT_PASS: demo
+    ports:
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+
+  valkey:
+    image: valkey/valkey:8.1-alpine
+
+  # El binario de Rust se compila para x86_64 (nodos N1 de GKE); en una Mac con Apple
+  # Silicon corre con la emulación de Docker Desktop.
+  rust-api:
+    build: ./rust-api
+    platform: linux/amd64
+    environment:
+      GO_API_URL: http://go-api:8080/reports
+      GO_API_DAPR_URL: http://go-api:8080/reports-dapr
+    ports:
+      - "8080:8080"
+    depends_on:
+      - go-api
+
+  # En GKE api-rest y grpc-client son dos contenedores del mismo pod y se hablan por
+  # localhost; aquí son dos servicios y se hablan por nombre.
+  go-api:
+    <<: *go-service
+    build:
+      context: ./go-services
+      args: { SERVICE: api-rest }
+    environment:
+      GRPC_CLIENT_ADDR: grpc-client:50050
+
+  grpc-client:
+    <<: *go-service
+    build:
+      context: ./go-services
+      args: { SERVICE: grpc-client }
+    environment:
+      GRPC_LISTEN: 0.0.0.0:50050
+      GRPC_SERVER_ADDR: dns:///grpc-server:50051
+
+  grpc-server:
+    <<: *go-service
+    build:
+      context: ./go-services
+      args: { SERVICE: grpc-server }
+    environment:
+      GRPC_LISTEN: 0.0.0.0:50051
+      WRITER_ADDR: rabbit-writer:50052
+
+  rabbit-writer:
+    <<: *go-service
+    build:
+      context: ./go-services
+      args: { SERVICE: rabbit-writer }
+    environment:
+      GRPC_LISTEN: 0.0.0.0:50052
+      RABBITMQ_URL: *rabbit-url
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+
+  consumer:
+    <<: *go-service
+    build:
+      context: ./go-services
+      args: { SERVICE: consumer }
+    environment:
+      RABBITMQ_URL: *rabbit-url
+      VALKEY_ADDR: valkey:6379
+      WORKERS: "4"
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+      valkey: { condition: service_started }
+
+  # Arma el mismo dashboard que instala el Operator, reemplazando los marcadores del chart
+  grafana-config:
+    image: alpine:3
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /out/provisioning/datasources /out/provisioning/dashboards /out/dashboards
+        sed -e 's/__PAIS__/GTM/g' -e 's/__CARNET__/202101149/g' -e 's/__REFRESH__/5s/g' \
+          /chart/files/dashboard.json > /out/dashboards/mumnk8s.json
+        cat > /out/provisioning/datasources/valkey.yaml <<'EOF'
+        apiVersion: 1
+        datasources:
+          - name: Valkey
+            type: redis-datasource
+            uid: valkey
+            access: proxy
+            url: redis://valkey:6379
+            isDefault: true
+            jsonData: { client: standalone, poolSize: 5, timeout: 10 }
+        EOF
+        cat > /out/provisioning/dashboards/mumnk8s.yaml <<'EOF'
+        apiVersion: 1
+        providers:
+          - name: mumnk8s
+            folder: M.U.M.N.K8s
+            type: file
+            options: { path: /var/lib/grafana/dashboards }
+        EOF
+    volumes:
+      - ./operator/helm-charts/grafanainstance:/chart:ro
+      - grafana-config:/out
+
+  grafana:
+    image: grafana/grafana:12.4.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: redis-datasource 2.2.0
+      GF_PATHS_PROVISIONING: /etc/grafana-config/provisioning
+    volumes:
+      - grafana-config:/etc/grafana-config:ro
+      - type: volume
+        source: grafana-config
+        target: /var/lib/grafana/dashboards
+        volume: { subpath: dashboards }
+    ports:
+      - "3000:3000"
+    depends_on:
+      grafana-config: { condition: service_completed_successfully }
+      valkey: { condition: service_started }
+
+volumes:
+  grafana-config:

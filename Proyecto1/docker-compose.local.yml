@@ -1,0 +1,34 @@
+# Prueba local del Proyecto 1 sin KVM: las 3 APIs en una sola red de Docker.
+# En la entrega real cada API corre en su propia VM (containerd, podman y docker) y
+# las imágenes salen del registro Zot; aquí se construyen con los mismos Dockerfiles.
+#
+# Uso (desde Proyecto1/):
+#   docker compose -f docker-compose.local.yml up --build -d
+#   curl localhost:8081/api1/202101149/call-api2
+#   docker compose -f docker-compose.local.yml stop api3   # simula la caída de VM2
+#   curl localhost:8081/api1/202101149/call-api3           # connection: false
+#   docker compose -f docker-compose.local.yml down
+services:
+  api1:
+    build: ./api1-containerd
+    environment:
+      API2_URL: http://api2:8082
+      API3_URL: http://api3:8083
+    ports:
+      - "8081:8081"
+
+  api2:
+    build: ./api2-podman
+    environment:
+      API1_URL: http://api1:8081
+      API3_URL: http://api3:8083
+    ports:
+      - "8082:8082"
+
+  api3:
+    build: ./api3-docker-zot
+    environment:
+      API1_URL: http://api1:8081
+      API2_URL: http://api2:8082
+    ports:
+      - "8083:8083"

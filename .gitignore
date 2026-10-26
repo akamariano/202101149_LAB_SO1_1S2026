@@ -8,7 +8,10 @@ vendor/
 # Módulos de Kernel & C
 *.ko
 *.o
+# bytecode eBPF generado por bpf2go: Go lo embebe con go:embed, se versiona
+!*_bpfel.o
 *.mod
+!go.mod
 *.mod.c
 *.symvers
 *.order
